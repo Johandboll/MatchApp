@@ -1,0 +1,60 @@
+[
+  {
+    "id": "p16-19",
+    "name": "P16/19",
+    "players": [
+      { "nr": 1, "name": "Harry Olsson", "role": "goalkeeper" },
+      { "nr": 12.2, "name": "William Zander", "role": "goalkeeper" },
+      { "nr": 12.1, "name": "Gabriel Frisack", "role": "goalkeeper" },
+      { "nr": 12, "name": "Melvin Kristoffersson", "role": "goalkeeper" },
+      { "nr": 16, "name": "Troy Lundberg", "role": "goalkeeper" },
+      { "nr": 16.1, "name": "Anton Nilsson", "role": "goalkeeper" },
+      { "nr": 2, "name": "William Lillierot" },
+      { "nr": 5, "name": "Anton Biörserud" },
+      { "nr": 6, "name": "Hugo Andersson" },
+      { "nr": 7, "name": "Isak Babajic" },
+      { "nr": 9, "name": "Tim Lundström" },
+      { "nr": 3, "name": "Axel Lidén" },
+      { "nr": 4, "name": "Arvid Dahlberg" },
+      { "nr": 10, "name": "Sante Väärt" },
+      { "nr": 15, "name": "Willhelm Rietz Örnros" },
+      { "nr": 17, "name": "Alfred Jerksten" },
+      { "nr": 18, "name": "Wilmer Havenstigh" },
+      { "nr": 19, "name": "Eldar Ahlbäck" },
+      { "nr": 20, "name": "Tobias Johansson" },
+      { "nr": 21, "name": "Elmer Missios Sandegård" },
+      { "nr": 23, "name": "Walter Lind" },
+      { "nr": 24, "name": "Rasmus Holgersson" },
+      { "nr": 27, "name": "Alvin Mathews" },
+      { "nr": 28, "name": "Anton Fagerberg" },
+      { "nr": 29, "name": "Theo Edling Sunninge" },
+      { "nr": 30, "name": "Rasmus Frisk" },
+      { "nr": 34, "name": "Lukas Strömstedt" }
+    ]
+  },
+  {
+    "id": "p13-14",
+    "name": "P13/14",
+    "players": [
+      { "nr": 30, "name": "Alfred Joelsson Nodin" },
+      { "nr": 28, "name": "Axel Agstrand" },
+      { "nr": 15, "name": "Erik Rahmn" },
+      { "nr": 33, "name": "Frank Olsson" },
+      { "nr": 18, "name": "Gustaf Lööf" },
+      { "nr": 17, "name": "Hugo Dahlström" },
+      { "nr": 12, "name": "Jonathan Bäckstrand", "role": "goalkeeper" },
+      { "nr": 20, "name": "Leo Lam" },
+      { "nr": 3,  "name": "Lucas Ragland Jaconelli" },
+      { "nr": 5,  "name": "Ola Holmgren" },
+      { "nr": 7,  "name": "Oliver Yngvesson" },
+      { "nr": 11, "name": "Oscar Dahlberg" },
+      { "nr": 22, "name": "Oscar Graaf Hanäs" },
+      { "nr": 1,  "name": "Otis Andersson", "role": "goalkeeper" },
+      { "nr": 37, "name": "Victor Demir" },
+      { "nr": 25, "name": "Viggo Dahlin Vuckovic" },
+      { "nr": 19, "name": "Viggo Lindström" },
+      { "nr": 14, "name": "William Augustin" },
+      { "nr": 16, "name": "William Kindblad", "role": "goalkeeper" }
+    ]
+  }
+]
