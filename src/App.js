@@ -18,7 +18,6 @@ import {
   emptyCounters,
   eventLabel,
   filterSeasonMatchesByTeam,
-  getTeamFromQuery,
   loadSaved,
   loadSeasonMatches,
   sortPlayersForUI
@@ -27,13 +26,56 @@ import {
 const APP_VERSION = process.env.REACT_APP_VERSION || "0.0.0";
 const CHANGELOG_TOOLTIP = getChangelogTooltip(APP_VERSION);
 
+const EXTERNAL_TEAM_ID = "__external_team_file__";
+
+function getTeamFromQuery() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const team = (params.get("team") || "").toLowerCase();
+    return team || null;
+  } catch {
+    return null;
+  }
+}
+
+function getTeamFileFromQuery() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("teamFile") || null;
+  } catch {
+    return null;
+  }
+}
+
+function getClubReturnPathFromTeamFile(teamFile) {
+  if (!teamFile) return null;
+
+  try {
+    const cleanPath = String(teamFile).split("?")[0].split("#")[0];
+    const parts = cleanPath.split("/").filter(Boolean);
+    if (parts.length >= 2) {
+      return `/${parts[0]}/`;
+    }
+  } catch {}
+
+  return null;
+}
+
 export default function App() {
   const saved = useMemo(() => loadSaved(), []);
   const whatsNew = useWhatsNew();
   const toastTimeoutRef = useRef(null);
 
+  const teamFileFromQuery = getTeamFileFromQuery();
+  const clubReturnPath = getClubReturnPathFromTeamFile(teamFileFromQuery);
+  const [externalTeamData, setExternalTeamData] = useState(null);
+  const [externalTeamLoading, setExternalTeamLoading] = useState(Boolean(teamFileFromQuery));
+
   const [seasonMatches, setSeasonMatches] = useState(() => loadSeasonMatches());
   const [selectedTeamId, setSelectedTeamId] = useState(() => {
+    const externalFile = getTeamFileFromQuery();
+    if (externalFile) return EXTERNAL_TEAM_ID;
+
     const fromQuery = getTeamFromQuery();
     if (fromQuery) return fromQuery;
     try {
@@ -73,10 +115,10 @@ export default function App() {
   const [seasonOpen, setSeasonOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const selectedTeam = useMemo(
-    () => teamsData.find((team) => team.id === selectedTeamId) || null,
-    [selectedTeamId]
-  );
+  const selectedTeam = useMemo(() => {
+    if (selectedTeamId === EXTERNAL_TEAM_ID) return externalTeamData;
+    return teamsData.find((team) => team.id === selectedTeamId) || null;
+  }, [selectedTeamId, externalTeamData]);
 
   const basePlayers = useMemo(() => {
     if (selectedTeam && Array.isArray(selectedTeam.players) && selectedTeam.players.length > 0) {
@@ -122,11 +164,69 @@ export default function App() {
 
   useEffect(() => {
     try {
-      if (selectedTeamId) {
+      if (selectedTeamId && selectedTeamId !== EXTERNAL_TEAM_ID) {
         localStorage.setItem(SELECTED_TEAM_KEY, selectedTeamId);
       }
     } catch {}
   }, [selectedTeamId]);
+
+  useEffect(() => {
+    if (!teamFileFromQuery) {
+      setExternalTeamData(null);
+      setExternalTeamLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadExternalTeam = async () => {
+      try {
+        setExternalTeamLoading(true);
+        const response = await fetch(teamFileFromQuery);
+        if (!response.ok) {
+          throw new Error(`Kunde inte läsa lagfilen: ${teamFileFromQuery}`);
+        }
+
+        const data = await response.json();
+        const mappedPlayers = Array.isArray(data?.players)
+          ? data.players.map((player) => ({
+              nr: Number(player.number),
+              name: String(player.name || "").trim(),
+              role: player.type === "goalkeeper" ? "goalkeeper" : undefined
+            }))
+          : [];
+
+        if (!cancelled) {
+          setExternalTeamData({
+            id: EXTERNAL_TEAM_ID,
+            name: data?.teamName || "Externt lag",
+            players: mappedPlayers
+          });
+          setSelectedTeamId(EXTERNAL_TEAM_ID);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setExternalTeamData({
+            id: EXTERNAL_TEAM_ID,
+            name: "Externt lag",
+            players: []
+          });
+          setSelectedTeamId(EXTERNAL_TEAM_ID);
+        }
+      } finally {
+        if (!cancelled) {
+          setExternalTeamLoading(false);
+        }
+      }
+    };
+
+    loadExternalTeam();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamFileFromQuery]);
 
   useEffect(() => {
     try {
@@ -632,10 +732,17 @@ export default function App() {
   const handleChangeTeam = useCallback(() => {
     if (window.confirm("Vill du byta lag? All matchdata raderas.")) {
       localStorage.removeItem(SELECTED_TEAM_KEY);
+      setExternalTeamData(null);
+
+      if (teamFileFromQuery && clubReturnPath) {
+        window.location.href = clubReturnPath;
+        return;
+      }
+
       clearTeamQueryParam();
       window.location.reload();
     }
-  }, []);
+  }, [clubReturnPath, teamFileFromQuery]);
 
   const canStartMatch =
     Boolean(matchInfo?.date) && Boolean(matchInfo?.opponent) && Boolean(matchInfo?.location);
@@ -662,6 +769,14 @@ export default function App() {
   const isHome = (matchInfo?.location || "") === "Hemma";
   const topbarLiveHome = isHome ? liveScore.our : liveScore.opp;
   const topbarLiveAway = isHome ? liveScore.opp : liveScore.our;
+
+  if (externalTeamLoading) {
+    return (
+      <div className="p-6 max-w-md mx-auto">
+        <h2 className="text-xl font-semibold mb-4">Laddar lag...</h2>
+      </div>
+    );
+  }
 
   if (!selectedTeamId) {
     return <TeamPicker teams={teamsData} appVersion={APP_VERSION} onSelectTeam={setSelectedTeamId} />;
