@@ -2,6 +2,12 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "1.4.9.2": [
+    "Säsongscenter kan nu filtrera mellan alla matcher, serie, alla cuper eller en specifik cup.",
+    "Ny säsongsöversikt med bästa match, starkaste försvar, flest mål i en match och snittmål per match.",
+    "Cupnamn och cupfas sparas med matcher och visas tydligare i säsongsvyn.",
+    "Förbättrade sammanställningar för utvisningar och missade avslut i säsongsstatistiken."
+  ],
   "1.4.6": [
     "Cupnamn följer med i filnamn.",
     "Cupnamn visas i Excel-export."

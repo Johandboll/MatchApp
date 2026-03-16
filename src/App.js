@@ -570,6 +570,9 @@ export default function App() {
       teamId: selectedTeamId,
       teamName: selectedTeam?.name || "",
       matchInfo: { ...matchInfo },
+      matchType: cupEnabled || cupPanelOpen ? "cup" : "series",
+      cupName: cupEnabled || cupPanelOpen ? (cupName || "").trim() : "",
+      cupPhase: cupEnabled || cupPanelOpen ? (cupPhase || "").trim() : "",
       result,
       selectedPlayers: [...selectedPlayers],
       playerRoster: [...selectedPlayers]
@@ -826,7 +829,6 @@ export default function App() {
           liveHome={topbarLiveHome}
           liveAway={topbarLiveAway}
           cupLabel={cupLabel}
-          onOpenSeason={() => setSeasonOpen(true)}
           history={history}
           allPlayers={allPlayers}
           onDeleteHistoryItem={deleteHistoryItem}
