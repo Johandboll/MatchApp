@@ -56,7 +56,7 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
             <ul style={styles.ul}>
               {cleanItems.map((txt, idx) => (
                 <li key={idx} style={styles.li}>
-                  {txt}
+                  {renderHighlightedPrefix(txt)}
                 </li>
               ))}
             </ul>
@@ -72,6 +72,18 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function renderHighlightedPrefix(text) {
+  const value = String(text || "").trim();
+  const match = value.match(/^\*\*(Nyhet|Fix):\*\*\s*(.+)$/);
+  if (!match) return value;
+
+  return (
+    <>
+      <strong>{match[1]}:</strong> {match[2]}
+    </>
   );
 }
 
