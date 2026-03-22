@@ -16,7 +16,6 @@ export default function MatchSession({
   liveHome,
   liveAway,
   cupLabel,
-  onOpenSeason,
   history,
   allPlayers,
   onDeleteHistoryItem,
@@ -48,17 +47,6 @@ export default function MatchSession({
         liveAway={liveAway}
         cupLabel={cupLabel}
       />
-
-      <div className="mb-3 flex gap-2">
-        <button
-          type="button"
-          onClick={onOpenSeason}
-          className="border px-3 py-2 rounded-xl bg-white/80"
-        >
-          📊 Säsong
-        </button>
-      </div>
-
       <button
         type="button"
         onClick={() => setLogOpen(true)}
