@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef } from "react";
 import Tooltip from "./Tooltip";
 
 export default function MatchSetup({
   matchInfo,
   onMatchInfoChange,
   onOpenSeason,
+  onOpenTeamAdmin,
   playersForUI,
   selectedPlayers,
   onTogglePlayer,
@@ -15,23 +16,12 @@ export default function MatchSetup({
   setCupName,
   cupPhase,
   setCupPhase,
-  extraPanelOpen,
-  setExtraPanelOpen,
-  extraPlayers,
-  onAddExtraPlayer,
-  onRemoveExtraPlayer,
-  onClearExtraPlayers,
   onStartMatch,
   canStartMatch,
   onChangeTeam,
   appVersion,
   changelogTooltip
 }) {
-  const [extraPlayerForm, setExtraPlayerForm] = useState({
-    nr: "",
-    name: "",
-    role: ""
-  });
   const dateInputRef = useRef(null);
 
   const isMobile = useMemo(() => {
@@ -60,17 +50,13 @@ export default function MatchSetup({
     }
   };
 
-  const submitExtraPlayer = () => {
-    const added = onAddExtraPlayer(extraPlayerForm);
-    if (added) {
-      setExtraPlayerForm({ nr: "", name: "", role: "" });
-    }
-  };
+  const getPlayerId = (player) => player.id ?? player.nr;
+  const getPlayerShirtNumber = (player) => player.shirtNumber ?? player.nr;
 
   return (
     <div>
       <h1 className="text-xl font-bold mb-4">Matchinformation</h1>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={onOpenSeason}
@@ -78,6 +64,15 @@ export default function MatchSetup({
         >
           📊 Säsong
         </button>
+        {onOpenTeamAdmin && (
+          <button
+            type="button"
+            onClick={onOpenTeamAdmin}
+            className="border px-3 py-2 rounded-xl bg-white/80"
+          >
+            Lagadmin
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -145,21 +140,23 @@ export default function MatchSetup({
       <h2 className="text-lg font-semibold mb-2">Välj spelare som är med i matchen</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
         {playersForUI.map((player) => {
-          const selected = selectedPlayers.includes(player.nr);
+          const playerId = getPlayerId(player);
+          const shirtNumber = getPlayerShirtNumber(player);
+          const selected = selectedPlayers.includes(playerId);
           const isGoalkeeper = player.role === "goalkeeper";
           const baseClass = "p-2 border rounded-xl text-left transition-colors";
-          const content = `#${player.nr} ${player.name}${isGoalkeeper ? " (MV)" : ""}`;
+          const content = `#${shirtNumber} ${player.name}${isGoalkeeper ? " (MV)" : ""}`;
 
           if (isGoalkeeper) {
             return (
               <button
-                key={player.nr}
+                key={playerId}
                 className={`${baseClass} ${
                   selected
                     ? "bg-yellow-300 border-yellow-700 text-black"
                     : "bg-yellow-50 hover:bg-yellow-100 border-yellow-300 text-black"
                 }`}
-                onClick={() => onTogglePlayer(player.nr)}
+                onClick={() => onTogglePlayer(playerId)}
               >
                 {content}
               </button>
@@ -168,13 +165,13 @@ export default function MatchSetup({
 
           return (
             <button
-              key={player.nr}
+              key={playerId}
               className={`${baseClass} ${
                 selected
                   ? "bg-blue-500 border-blue-700 text-white"
                   : "bg-blue-50 hover:bg-blue-100 border-blue-300 text-black"
               }`}
-              onClick={() => onTogglePlayer(player.nr)}
+              onClick={() => onTogglePlayer(playerId)}
             >
               {content}
             </button>
@@ -220,88 +217,6 @@ export default function MatchSetup({
                 <option value="Semi">Semi</option>
                 <option value="Final">Final</option>
               </select>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mb-6 p-3 border rounded-xl bg-white/60">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={extraPanelOpen}
-            onChange={(e) => setExtraPanelOpen(e.target.checked)}
-          />
-          <span className="font-medium">Lägg till extra spelare vid behov</span>
-        </label>
-
-        {extraPanelOpen && (
-          <div className="mt-3">
-            <h2 className="text-lg font-semibold mb-2">Extra spelare för denna cup/match</h2>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {extraPlayers.length === 0 && (
-                <div className="text-sm text-gray-500">Inga extra spelare tillagda ännu.</div>
-              )}
-              {extraPlayers.map((player) => (
-                <span
-                  key={player.nr}
-                  className="inline-flex items-center gap-2 px-2 py-1 border rounded-lg bg-white"
-                >
-                  #{player.nr} {player.name}
-                  {player.role === "goalkeeper" ? " (MV)" : ""}
-                  <button
-                    className="text-red-600 font-bold"
-                    onClick={() => onRemoveExtraPlayer(player.nr)}
-                    title="Ta bort"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-              <input
-                type="number"
-                inputMode="numeric"
-                placeholder="Nummer"
-                className="border p-2 rounded"
-                value={extraPlayerForm.nr}
-                onChange={(e) =>
-                  setExtraPlayerForm((prev) => ({ ...prev, nr: e.target.value }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Namn"
-                className="border p-2 rounded sm:col-span-2"
-                value={extraPlayerForm.name}
-                onChange={(e) =>
-                  setExtraPlayerForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
-              <select
-                className="border p-2 rounded"
-                value={extraPlayerForm.role}
-                onChange={(e) =>
-                  setExtraPlayerForm((prev) => ({ ...prev, role: e.target.value }))
-                }
-              >
-                <option value="">Utespelare</option>
-                <option value="goalkeeper">Målvakt</option>
-              </select>
-              <button
-                className="sm:col-span-4 mt-1 bg-blue-600 text-white px-3 py-2 rounded-xl"
-                onClick={submitExtraPlayer}
-              >
-                Lägg till extra spelare
-              </button>
-              <button
-                className="sm:col-span-4 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg"
-                onClick={onClearExtraPlayers}
-              >
-                Rensa alla extra spelare
-              </button>
             </div>
           </div>
         )}

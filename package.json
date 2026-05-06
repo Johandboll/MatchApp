@@ -1,9 +1,10 @@
 {
   "name": "matchapp",
-  "version": "1.4.9.2",
+  "version": "1.5.1",
   "private": true,
   "homepage": "https://handbollsportalen.se/matchapp",
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.2",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -15,17 +16,13 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-  "start": "REACT_APP_VERSION=$npm_package_version REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts start",
-
-  "build": "REACT_APP_VERSION=$npm_package_version REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
-
-  "build:local": "PUBLIC_URL=. REACT_APP_VERSION=$npm_package_version REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
-
-  "build:prod": "REACT_APP_VERSION=$npm_package_version REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
-
-  "test": "react-scripts test",
-  "eject": "react-scripts eject"
-
+    "start": "REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts start",
+    "build": "REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
+    "build:local": "PUBLIC_URL=. REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
+    "build:test": "PUBLIC_URL=/test REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
+    "build:prod": "PUBLIC_URL=/matchapp REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [

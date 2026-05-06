@@ -1,13 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import teamsData from "./data/teams.json";
+import AuthView from "./components/AuthView";
 import WhatsNewModal from "./components/WhatsNewModal";
 import TeamPicker from "./components/TeamPicker";
 import MatchSetup from "./components/MatchSetup";
 import MatchSession from "./components/MatchSession";
 import SeasonCenter from "./components/SeasonCenter";
+import TeamAdminPanel from "./components/TeamAdminPanel";
 import { getChangelogTooltip } from "./changelog";
+import { APP_VERSION } from "./config/appVersion";
+import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
+import { useSupabaseMatches } from "./hooks/useSupabaseMatches";
+import { useSupabaseTeams } from "./hooks/useSupabaseTeams";
 import { useWhatsNew } from "./hooks/useWhatsNew";
 import { exportMatchExcel } from "./lib/exportMatchExcel";
+import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import {
   APP_STATE_KEY,
   SEASON_STATE_KEY,
@@ -23,10 +30,17 @@ import {
   sortPlayersForUI
 } from "./lib/appHelpers";
 
-const APP_VERSION = process.env.REACT_APP_VERSION || "0.0.0";
 const CHANGELOG_TOOLTIP = getChangelogTooltip(APP_VERSION);
 
 const EXTERNAL_TEAM_ID = "__external_team_file__";
+const PENDING_ONLINE_MATCHES_KEY = "matchapp-pending-online-matches";
+const slugifyPlayerPart = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "player";
 
 function getTeamFromQuery() {
   try {
@@ -61,7 +75,23 @@ function getClubReturnPathFromTeamFile(teamFile) {
   return null;
 }
 
+function loadPendingOnlineMatches() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_ONLINE_MATCHES_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingOnlineMatches(matches) {
+  try {
+    localStorage.setItem(PENDING_ONLINE_MATCHES_KEY, JSON.stringify(matches));
+  } catch {}
+}
+
 export default function App() {
+  const auth = useSupabaseAuth();
+  const onlineTeams = useSupabaseTeams(auth.user);
   const saved = useMemo(() => loadSaved(), []);
   const whatsNew = useWhatsNew();
   const toastTimeoutRef = useRef(null);
@@ -85,11 +115,9 @@ export default function App() {
     }
   });
 
-  const [extraPlayers, setExtraPlayers] = useState(() => saved?.extraPlayers || []);
   const [cupEnabled, setCupEnabled] = useState(() => saved?.cupEnabled || false);
   const [cupName, setCupName] = useState(() => saved?.cupName || "");
   const [cupPhase, setCupPhase] = useState(() => saved?.cupPhase || "");
-  const [extraPanelOpen, setExtraPanelOpen] = useState(() => saved?.extraPanelOpen ?? false);
   const [cupPanelOpen, setCupPanelOpen] = useState(
     () => saved?.cupPanelOpen ?? (saved?.cupEnabled ?? false)
   );
@@ -113,12 +141,20 @@ export default function App() {
   const [currentHalf, setCurrentHalf] = useState(() => saved?.currentHalf || 1);
   const [viewMode, setViewMode] = useState(() => saved?.viewMode || "match");
   const [seasonOpen, setSeasonOpen] = useState(false);
+  const [teamAdminOpen, setTeamAdminOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [pendingOnlineMatches, setPendingOnlineMatches] = useState(() => loadPendingOnlineMatches());
+
+  const availableTeams = useMemo(() => {
+    if (isSupabaseConfigured && auth.user) return onlineTeams.teams;
+    return teamsData;
+  }, [auth.user, onlineTeams.teams]);
 
   const selectedTeam = useMemo(() => {
     if (selectedTeamId === EXTERNAL_TEAM_ID) return externalTeamData;
-    return teamsData.find((team) => team.id === selectedTeamId) || null;
-  }, [selectedTeamId, externalTeamData]);
+    return availableTeams.find((team) => team.id === selectedTeamId) || null;
+  }, [availableTeams, selectedTeamId, externalTeamData]);
+  const onlineMatches = useSupabaseMatches(auth.user, selectedTeam);
 
   const basePlayers = useMemo(() => {
     if (selectedTeam && Array.isArray(selectedTeam.players) && selectedTeam.players.length > 0) {
@@ -128,18 +164,53 @@ export default function App() {
   }, [selectedTeam]);
 
   const allPlayers = useMemo(() => {
-    const normalize = (player) => ({
-      nr: typeof player.nr === "number" ? player.nr : Number(player.nr),
-      name: String(player.name || "").trim(),
-      role: player.role === "goalkeeper" ? "goalkeeper" : undefined
-    });
-    return [...basePlayers, ...extraPlayers.map(normalize)];
-  }, [basePlayers, extraPlayers]);
+    const normalize = (player, index = 0) => {
+      const nr = typeof player.nr === "number" ? player.nr : Number(player.nr);
+      const shirtNumber =
+        typeof player.shirtNumber === "number" ? player.shirtNumber : Number(player.shirtNumber ?? player.nr);
+      const name = String(player.name || "").trim();
+      return {
+        id: player.id || `extra-${slugifyPlayerPart(name)}-${Number.isFinite(shirtNumber) ? shirtNumber : index + 1}`,
+        nr,
+        shirtNumber,
+        name,
+        role: player.role === "goalkeeper" ? "goalkeeper" : undefined
+      };
+    };
+    return basePlayers.map((player, index) => normalize(player, index));
+  }, [basePlayers]);
+
+  const getPlayerId = useCallback((player) => player?.id ?? player?.nr, []);
+
+  const getPlayerShirtNumber = useCallback((player) => player?.shirtNumber ?? player?.nr, []);
+
+  const playerMatchesRef = useCallback(
+    (player, ref) => String(getPlayerId(player)) === String(ref) || String(player?.nr) === String(ref),
+    [getPlayerId]
+  );
+
+  const findPlayerByRef = useCallback(
+    (ref) => allPlayers.find((player) => playerMatchesRef(player, ref)),
+    [allPlayers, playerMatchesRef]
+  );
 
   const playersForUI = useMemo(() => sortPlayersForUI(allPlayers), [allPlayers]);
+  const pendingMatchesForSelectedTeam = useMemo(
+    () => pendingOnlineMatches.filter((match) => match.teamId === selectedTeamId),
+    [pendingOnlineMatches, selectedTeamId]
+  );
   const seasonMatchesForView = useMemo(
-    () => filterSeasonMatchesByTeam(seasonMatches, selectedTeamId),
-    [seasonMatches, selectedTeamId]
+    () =>
+      onlineMatches.online
+        ? [...onlineMatches.matches, ...pendingMatchesForSelectedTeam]
+        : filterSeasonMatchesByTeam(seasonMatches, selectedTeamId),
+    [
+      onlineMatches.matches,
+      onlineMatches.online,
+      pendingMatchesForSelectedTeam,
+      seasonMatches,
+      selectedTeamId
+    ]
   );
 
   const seasonSummary = useMemo(
@@ -189,11 +260,19 @@ export default function App() {
 
         const data = await response.json();
         const mappedPlayers = Array.isArray(data?.players)
-          ? data.players.map((player) => ({
-              nr: Number(player.number),
-              name: String(player.name || "").trim(),
-              role: player.type === "goalkeeper" ? "goalkeeper" : undefined
-            }))
+          ? data.players.map((player, index) => {
+              const shirtNumber = Number(player.number);
+              const name = String(player.name || "").trim();
+              return {
+                id:
+                  player.id ||
+                  `${EXTERNAL_TEAM_ID}-${slugifyPlayerPart(name)}-${Number.isFinite(shirtNumber) ? shirtNumber : index + 1}`,
+                nr: shirtNumber,
+                shirtNumber,
+                name,
+                role: player.type === "goalkeeper" ? "goalkeeper" : undefined
+              };
+            })
           : [];
 
         if (!cancelled) {
@@ -234,6 +313,37 @@ export default function App() {
     } catch {}
   }, [seasonMatches]);
 
+  useEffect(() => {
+    savePendingOnlineMatches(pendingOnlineMatches);
+  }, [pendingOnlineMatches]);
+
+  useEffect(() => {
+    if (!onlineMatches.online || pendingMatchesForSelectedTeam.length === 0) return undefined;
+
+    let cancelled = false;
+
+    const syncPendingMatches = async () => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+      for (const pendingMatch of pendingMatchesForSelectedTeam) {
+        if (cancelled) return;
+
+        const { error } = await onlineMatches.saveMatch(pendingMatch);
+        if (error) return;
+
+        setPendingOnlineMatches((prev) => prev.filter((match) => match.id !== pendingMatch.id));
+      }
+    };
+
+    syncPendingMatches();
+    window.addEventListener("online", syncPendingMatches);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", syncPendingMatches);
+    };
+  }, [onlineMatches, pendingMatchesForSelectedTeam]);
+
   const persist = useCallback(() => {
     localStorage.setItem(
       APP_STATE_KEY,
@@ -245,11 +355,9 @@ export default function App() {
         history,
         currentHalf,
         viewMode,
-        extraPlayers,
         cupEnabled,
         cupName,
         cupPhase,
-        extraPanelOpen,
         cupPanelOpen
       })
     );
@@ -261,11 +369,9 @@ export default function App() {
     history,
     currentHalf,
     viewMode,
-    extraPlayers,
     cupEnabled,
     cupName,
     cupPhase,
-    extraPanelOpen,
     cupPanelOpen
   ]);
 
@@ -308,9 +414,11 @@ export default function App() {
     });
   }, []);
 
-  const togglePlayer = useCallback((nr) => {
+  const togglePlayer = useCallback((playerId) => {
     setSelectedPlayers((prev) =>
-      prev.includes(nr) ? prev.filter((item) => item !== nr) : [...prev, nr]
+      prev.includes(playerId)
+        ? prev.filter((item) => item !== playerId)
+        : [...prev, playerId]
     );
   }, []);
 
@@ -318,45 +426,6 @@ export default function App() {
     const { name, value } = event.target;
     setMatchInfo((prev) => ({ ...prev, [name]: value }));
   }, []);
-
-  const addExtraPlayer = useCallback(
-    (player) => {
-      const nrNum = Number(player.nr);
-      if (!nrNum || !player.name?.trim()) {
-        alert("Fyll i både nummer och namn.");
-        return false;
-      }
-      const exists = allPlayers.some((item) => String(item.nr) === String(nrNum));
-      if (exists) {
-        alert("Det finns redan en spelare med det numret.");
-        return false;
-      }
-      setExtraPlayers((prev) => [
-        ...prev,
-        {
-          nr: nrNum,
-          name: player.name.trim(),
-          role: player.role === "goalkeeper" ? "goalkeeper" : undefined
-        }
-      ]);
-      return true;
-    },
-    [allPlayers]
-  );
-
-  const removeExtraPlayer = useCallback((nr) => {
-    setExtraPlayers((prev) => prev.filter((player) => String(player.nr) !== String(nr)));
-    setSelectedPlayers((prev) => prev.filter((item) => String(item) !== String(nr)));
-  }, []);
-
-  const clearExtraPlayers = useCallback(() => {
-    if (window.confirm("Rensa alla extra spelare?")) {
-      setExtraPlayers([]);
-      setSelectedPlayers((prev) =>
-        prev.filter((nr) => basePlayers.some((player) => String(player.nr) === String(nr)))
-      );
-    }
-  }, [basePlayers]);
 
   const startMatch = useCallback(() => {
     if (!matchInfo?.date || !matchInfo?.opponent || !matchInfo?.location) {
@@ -386,7 +455,7 @@ export default function App() {
     (nr, type) => {
       ensurePlayerStats(nr);
 
-      const player = allPlayers.find((item) => String(item.nr) === String(nr));
+      const player = findPlayerByRef(nr);
       const isGoalkeeper = player?.role === "goalkeeper";
 
       let alsoType = null;
@@ -429,16 +498,17 @@ export default function App() {
         {
           id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
           time: Date.now(),
-          nr,
+          playerId: getPlayerId(player),
+          nr: getPlayerShirtNumber(player),
           type,
           alsoType,
           half: currentHalf
         }
       ]);
 
-      showToast(`#${nr} ${player?.name || ""} – ${eventLabel(type, player)}`);
+      showToast(`#${getPlayerShirtNumber(player) ?? nr} ${player?.name || ""} – ${eventLabel(type, player)}`);
     },
-    [allPlayers, currentHalf, ensurePlayerStats, showToast]
+    [currentHalf, ensurePlayerStats, findPlayerByRef, getPlayerId, getPlayerShirtNumber, showToast]
   );
 
   const undoLast = useCallback(() => {
@@ -446,7 +516,8 @@ export default function App() {
     const last = history[history.length - 1];
 
     setStats((prev) => {
-      const playerStats = prev[last.nr];
+      const playerRef = last.playerId ?? last.nr;
+      const playerStats = prev[playerRef];
       if (!playerStats) return prev;
 
       const byHalf = { ...(playerStats.byHalf || { 1: emptyCounters(), 2: emptyCounters() }) };
@@ -479,13 +550,15 @@ export default function App() {
         };
       }
 
-      return { ...prev, [last.nr]: next };
+      return { ...prev, [playerRef]: next };
     });
 
     setHistory((prev) => prev.slice(0, -1));
-    const player = allPlayers.find((item) => String(item.nr) === String(last.nr));
-    showToast(`Ångrade: #${last.nr} ${player?.name || ""} – ${eventLabel(last.type, player)}`);
-  }, [allPlayers, currentHalf, history, showToast]);
+    const player = findPlayerByRef(last.playerId ?? last.nr);
+    showToast(
+      `Ångrade: #${last.nr ?? getPlayerShirtNumber(player) ?? ""} ${player?.name || ""} – ${eventLabel(last.type, player)}`
+    );
+  }, [currentHalf, findPlayerByRef, getPlayerShirtNumber, history, showToast]);
 
   const deleteHistoryItem = useCallback(
     (id) => {
@@ -493,7 +566,8 @@ export default function App() {
       if (!item) return;
 
       setStats((prev) => {
-        const playerStats = prev[item.nr];
+        const playerRef = item.playerId ?? item.nr;
+        const playerStats = prev[playerRef];
         if (!playerStats) return prev;
 
         const byHalf = { ...(playerStats.byHalf || { 1: emptyCounters(), 2: emptyCounters() }) };
@@ -526,14 +600,16 @@ export default function App() {
           };
         }
 
-        return { ...prev, [item.nr]: next };
+        return { ...prev, [playerRef]: next };
       });
 
       setHistory((prev) => prev.filter((entry) => entry.id !== id));
-      const player = allPlayers.find((entry) => String(entry.nr) === String(item.nr));
-      showToast(`Raderade: #${item.nr} ${player?.name || ""} – ${eventLabel(item.type, player)}`);
+      const player = findPlayerByRef(item.playerId ?? item.nr);
+      showToast(
+        `Raderade: #${item.nr ?? getPlayerShirtNumber(player) ?? ""} ${player?.name || ""} – ${eventLabel(item.type, player)}`
+      );
     },
-    [allPlayers, currentHalf, history, showToast]
+    [currentHalf, findPlayerByRef, getPlayerShirtNumber, history, showToast]
   );
 
   const computeFinalScore = useCallback(
@@ -542,7 +618,7 @@ export default function App() {
       let oppGoals = 0;
 
       Object.entries(statsObj || {}).forEach(([nr, playerStats]) => {
-        const player = allPlayers.find((item) => String(item.nr) === String(nr));
+        const player = findPlayerByRef(nr);
         if (!player) return;
 
         if (player.role === "goalkeeper") {
@@ -559,10 +635,10 @@ export default function App() {
         away: isHomeMatch ? oppGoals : ourGoals
       };
     },
-    [allPlayers, matchInfo?.location]
+    [findPlayerByRef, matchInfo?.location]
   );
 
-  const saveCurrentMatchToSeason = useCallback(() => {
+  const saveCurrentMatchToSeason = useCallback(async () => {
     const result = computeFinalScore(stats);
     const matchRecord = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -576,46 +652,75 @@ export default function App() {
       result,
       selectedPlayers: [...selectedPlayers],
       playerRoster: [...selectedPlayers]
-        .map((nr) => {
-          const player = allPlayers.find((item) => String(item.nr) === String(nr));
+        .map((playerRef) => {
+          const player = findPlayerByRef(playerRef);
+          const shirtNumber = getPlayerShirtNumber(player);
           return {
-            nr: Number(nr),
+            id: getPlayerId(player) ?? playerRef,
+            nr: Number(shirtNumber),
+            shirtNumber: Number(shirtNumber),
             name: player?.name || "",
             role: player?.role === "goalkeeper" ? "goalkeeper" : undefined
           };
         })
-        .filter((player) => Number.isFinite(Number(player.nr))),
+        .filter((player) => Number.isFinite(Number(player.shirtNumber))),
       stats: JSON.parse(JSON.stringify(stats || {})),
       history: JSON.parse(JSON.stringify(history || []))
     };
 
-    setSeasonMatches((prev) => {
-      const alreadySaved = prev.some((match) => {
-        return (
-          match.teamId === matchRecord.teamId &&
-          match.matchInfo?.date === matchRecord.matchInfo?.date &&
-          match.matchInfo?.opponent === matchRecord.matchInfo?.opponent &&
-          match.matchInfo?.location === matchRecord.matchInfo?.location &&
-          JSON.stringify(match.result || {}) === JSON.stringify(matchRecord.result || {})
-        );
-      });
+    const alreadySaved = seasonMatchesForView.some((match) => {
+      return (
+        match.teamId === matchRecord.teamId &&
+        match.matchInfo?.date === matchRecord.matchInfo?.date &&
+        match.matchInfo?.opponent === matchRecord.matchInfo?.opponent &&
+        match.matchInfo?.location === matchRecord.matchInfo?.location &&
+        JSON.stringify(match.result || {}) === JSON.stringify(matchRecord.result || {})
+      );
+    });
 
-      if (alreadySaved) {
-        showToast("Matchen finns redan sparad i säsongen");
-        return prev;
+    if (alreadySaved) {
+      showToast("Matchen finns redan sparad i säsongen");
+      return;
+    }
+
+    if (onlineMatches.online) {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setPendingOnlineMatches((prev) => [...prev, { ...matchRecord, pendingSync: true }]);
+        showToast("Match sparad offline och synkas när nätet är tillbaka");
+        return;
       }
 
+      const { error } = await onlineMatches.saveMatch(matchRecord);
+      if (error) {
+        setPendingOnlineMatches((prev) => [...prev, { ...matchRecord, pendingSync: true }]);
+        showToast("Match sparad offline och synkas senare");
+        return;
+      }
+
+      showToast("Match sparad online");
+      return;
+    }
+
+    setSeasonMatches((prev) => {
       showToast("Match sparad i säsongen");
       return [...prev, matchRecord];
     });
   }, [
-    allPlayers,
+    cupEnabled,
+    cupName,
+    cupPanelOpen,
+    cupPhase,
+    findPlayerByRef,
+    getPlayerId,
+    getPlayerShirtNumber,
     computeFinalScore,
     history,
     matchInfo,
+    onlineMatches,
     selectedPlayers,
     selectedTeam,
     selectedTeamId,
+    seasonMatchesForView,
     showToast,
     stats
   ]);
@@ -646,11 +751,9 @@ export default function App() {
         history: [],
         currentHalf: 1,
         viewMode: "match",
-        extraPlayers,
         cupEnabled,
         cupName,
         cupPhase,
-        extraPanelOpen,
         cupPanelOpen
       })
     );
@@ -661,8 +764,6 @@ export default function App() {
     cupName,
     cupPanelOpen,
     cupPhase,
-    extraPanelOpen,
-    extraPlayers,
     history.length,
     matchInfo,
     saveCurrentMatchToSeason,
@@ -709,16 +810,48 @@ export default function App() {
   }, [allPlayers, cupEnabled, cupName, cupPanelOpen, cupPhase, matchInfo, selectedPlayers, stats]);
 
   const handleDeleteSeasonMatch = useCallback(
-    (matchId) => {
+    async (matchId) => {
+    if (onlineMatches.online) {
+      const pendingMatch = pendingOnlineMatches.find((match) => match.id === matchId);
+      if (pendingMatch) {
+        setPendingOnlineMatches((prev) => prev.filter((match) => match.id !== matchId));
+        showToast("Match borttagen");
+        return;
+      }
+
+      const { error } = await onlineMatches.deleteMatch(matchId);
+        if (error) {
+          showToast(`Kunde inte ta bort online: ${error.message}`);
+          return;
+        }
+
+        showToast("Match borttagen");
+        return;
+      }
+
       setSeasonMatches((prev) => prev.filter((match) => match.id !== matchId));
       showToast("Match borttagen");
     },
-    [showToast]
+    [onlineMatches, pendingOnlineMatches, showToast]
   );
 
-  const handleClearSeason = useCallback(() => {
+  const handleClearSeason = useCallback(async () => {
     if (seasonMatchesForView.length === 0) {
       showToast("Säsongen är redan tom");
+      return;
+    }
+
+    if (onlineMatches.online) {
+      setPendingOnlineMatches((prev) => prev.filter((match) => match.teamId !== selectedTeamId));
+
+      const { error } = await onlineMatches.clearMatches();
+      if (error) {
+        showToast(`Kunde inte rensa online: ${error.message}`);
+        return;
+      }
+
+      showToast("Säsongen rensad");
+      setSeasonOpen(false);
       return;
     }
 
@@ -730,7 +863,103 @@ export default function App() {
 
     showToast("Säsongen rensad");
     setSeasonOpen(false);
-  }, [seasonMatchesForView.length, selectedTeamId, showToast]);
+  }, [onlineMatches, seasonMatchesForView.length, selectedTeamId, showToast]);
+
+  const getSeasonMatchKey = useCallback((match) => {
+    const result = match?.result || {};
+    return [
+      match?.teamId || selectedTeamId || "",
+      match?.matchInfo?.date || "",
+      match?.matchInfo?.opponent || "",
+      match?.matchInfo?.location || "",
+      result.home ?? "",
+      result.away ?? ""
+    ].join("|");
+  }, [selectedTeamId]);
+
+  const handleImportSeasonBackup = useCallback(
+    async (data) => {
+      if (data?.invalid || !Array.isArray(data?.matches)) {
+        showToast("Kunde inte läsa backupfilen");
+        return;
+      }
+
+      if (!selectedTeamId || !selectedTeam) {
+        showToast("Välj lag innan import");
+        return;
+      }
+
+      const importedMatches = data.matches
+        .filter((match) => !data.teamId || match.teamId === data.teamId)
+        .map((match) => ({
+          ...match,
+          id: match.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          createdAt: match.createdAt || new Date().toISOString(),
+          teamId: selectedTeamId,
+          teamName: selectedTeam.name || match.teamName || "",
+          matchInfo: match.matchInfo || {},
+          matchType: match.matchType || "series",
+          cupName: match.cupName || "",
+          cupPhase: match.cupPhase || "",
+          result: match.result || {},
+          selectedPlayers: match.selectedPlayers || [],
+          playerRoster: match.playerRoster || [],
+          stats: match.stats || {},
+          history: match.history || []
+        }));
+
+      if (importedMatches.length === 0) {
+        showToast("Backupen innehåller inga matcher för valt lag");
+        return;
+      }
+
+      const existingKeys = new Set(seasonMatchesForView.map(getSeasonMatchKey));
+      const matchesToImport = [];
+      let skipped = 0;
+
+      importedMatches.forEach((match) => {
+        const key = getSeasonMatchKey(match);
+        if (existingKeys.has(key)) {
+          skipped += 1;
+          return;
+        }
+        existingKeys.add(key);
+        matchesToImport.push(match);
+      });
+
+      if (matchesToImport.length === 0) {
+        showToast(`Inga nya matcher att importera (${skipped} fanns redan)`);
+        return;
+      }
+
+      if (onlineMatches.online) {
+        let imported = 0;
+
+        for (const match of matchesToImport) {
+          const { error } = await onlineMatches.saveMatch(match);
+          if (error) {
+            showToast(`Import avbruten: ${error.message}`);
+            return;
+          }
+          imported += 1;
+        }
+
+        showToast(`Importerade ${imported} matcher online${skipped ? `, hoppade över ${skipped}` : ""}`);
+        return;
+      }
+
+      setSeasonMatches((prev) => [...prev, ...matchesToImport]);
+      showToast(`Importerade ${matchesToImport.length} matcher${skipped ? `, hoppade över ${skipped}` : ""}`);
+    },
+    [
+      getSeasonMatchKey,
+      onlineMatches,
+      seasonMatchesForView,
+      selectedTeam,
+      selectedTeamId,
+      showToast
+    ]
+  );
 
   const handleChangeTeam = useCallback(() => {
     if (window.confirm("Vill du byta lag? All matchdata raderas.")) {
@@ -747,6 +976,54 @@ export default function App() {
     }
   }, [clubReturnPath, teamFileFromQuery]);
 
+  const handleSignOut = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+  }, []);
+
+  const handleTeamCreated = useCallback(
+    (createdTeam) => {
+      if (!createdTeam) return;
+
+      const nextTeam = {
+        id: createdTeam.slug || createdTeam.id,
+        onlineId: createdTeam.id,
+        name: createdTeam.name,
+        players: []
+      };
+
+      onlineTeams.setTeams((prev) => [...prev, nextTeam]);
+      setSelectedTeamId(nextTeam.id);
+      showToast("Lag skapat");
+    },
+    [onlineTeams, showToast]
+  );
+
+  const handleTeamPlayersChanged = useCallback(
+    (players) => {
+      if (!selectedTeam?.id) return;
+
+      const mappedPlayers = (players || [])
+        .filter((player) => player.active !== false)
+        .map((player) => ({
+          id: player.id,
+          nr: Number(player.shirt_number),
+          shirtNumber: Number(player.shirt_number),
+          name: player.name,
+          role: player.role === "goalkeeper" ? "goalkeeper" : undefined
+        }));
+
+      onlineTeams.setTeams((prev) =>
+        prev.map((team) =>
+          team.id === selectedTeam.id
+            ? { ...team, players: mappedPlayers }
+            : team
+        )
+      );
+    },
+    [onlineTeams, selectedTeam]
+  );
+
   const canStartMatch =
     Boolean(matchInfo?.date) && Boolean(matchInfo?.opponent) && Boolean(matchInfo?.location);
 
@@ -755,7 +1032,7 @@ export default function App() {
     let opp = 0;
 
     Object.entries(stats).forEach(([nr, playerStats]) => {
-      const player = allPlayers.find((item) => String(item.nr) === String(nr));
+      const player = findPlayerByRef(nr);
       if (!player) return;
 
       if (player.role === "goalkeeper") {
@@ -767,11 +1044,20 @@ export default function App() {
     });
 
     return { our, opp };
-  }, [allPlayers, stats]);
+  }, [findPlayerByRef, stats]);
 
   const isHome = (matchInfo?.location || "") === "Hemma";
   const topbarLiveHome = isHome ? liveScore.our : liveScore.opp;
   const topbarLiveAway = isHome ? liveScore.opp : liveScore.our;
+  const onlineStatus = onlineMatches.online
+    ? pendingMatchesForSelectedTeam.length > 0
+      ? `${pendingMatchesForSelectedTeam.length} match${pendingMatchesForSelectedTeam.length === 1 ? "" : "er"} väntar på synk`
+      : onlineTeams.usingCache
+        ? "Offline: cachelagrat lag"
+        : onlineMatches.loading
+        ? "Synkar..."
+        : "Synkad online"
+    : "Lokal lagring";
 
   if (externalTeamLoading) {
     return (
@@ -781,17 +1067,82 @@ export default function App() {
     );
   }
 
+  if (isSupabaseConfigured && auth.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
+          Laddar inloggning...
+        </div>
+      </div>
+    );
+  }
+
+  if (isSupabaseConfigured && !auth.user) {
+    return <AuthView appVersion={APP_VERSION} />;
+  }
+
+  if (isSupabaseConfigured && onlineTeams.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
+          Hämtar dina lag...
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedTeamId) {
-    return <TeamPicker teams={teamsData} appVersion={APP_VERSION} onSelectTeam={setSelectedTeamId} />;
+    return (
+      <TeamPicker
+        teams={availableTeams}
+        appVersion={APP_VERSION}
+        onSelectTeam={setSelectedTeamId}
+        error={onlineTeams.error}
+        onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
+      />
+    );
   }
 
   return (
     <div className="p-4 max-w-7xl mx-auto relative">
+      {isSupabaseConfigured && auth.user && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 text-slate-700">
+            <span>
+              Inloggad som <span className="font-semibold text-slate-900">{auth.user.email}</span>
+            </span>
+            <span
+              className={`rounded-full px-2 py-1 text-xs font-bold ${
+                pendingMatchesForSelectedTeam.length > 0
+                  ? "bg-amber-100 text-amber-800"
+                  : onlineTeams.usingCache
+                    ? "bg-amber-100 text-amber-800"
+                  : onlineMatches.online
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {onlineStatus}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Logga ut
+          </button>
+        </div>
+      )}
+
       {(step === 1 || (step === 2 && selectedPlayers.length === 0)) && (
         <MatchSetup
           matchInfo={matchInfo}
           onMatchInfoChange={handleMatchInfoChange}
           onOpenSeason={() => setSeasonOpen(true)}
+          onOpenTeamAdmin={
+            selectedTeam?.onlineId ? () => setTeamAdminOpen(true) : null
+          }
           playersForUI={playersForUI}
           selectedPlayers={selectedPlayers}
           onTogglePlayer={togglePlayer}
@@ -802,12 +1153,6 @@ export default function App() {
           setCupName={setCupName}
           cupPhase={cupPhase}
           setCupPhase={setCupPhase}
-          extraPanelOpen={extraPanelOpen}
-          setExtraPanelOpen={setExtraPanelOpen}
-          extraPlayers={extraPlayers}
-          onAddExtraPlayer={addExtraPlayer}
-          onRemoveExtraPlayer={removeExtraPlayer}
-          onClearExtraPlayers={clearExtraPlayers}
           onStartMatch={startMatch}
           canStartMatch={canStartMatch}
           onChangeTeam={handleChangeTeam}
@@ -844,11 +1189,21 @@ export default function App() {
         selectedTeam={selectedTeam}
         seasonKpis={seasonKpis}
         onExportBackup={exportSeasonJson}
+        onImportBackup={handleImportSeasonBackup}
         onClose={() => setSeasonOpen(false)}
         seasonSummary={seasonSummary}
         matches={seasonMatchesForView}
         onDeleteMatch={handleDeleteSeasonMatch}
         onClearSeason={handleClearSeason}
+      />
+
+      <TeamAdminPanel
+        open={teamAdminOpen}
+        team={selectedTeam}
+        currentUser={auth.user}
+        onClose={() => setTeamAdminOpen(false)}
+        onToast={showToast}
+        onPlayersChanged={handleTeamPlayersChanged}
       />
 
       {toast && (

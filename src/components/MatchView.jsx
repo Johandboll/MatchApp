@@ -47,8 +47,14 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const sevenLabelA = (nr) => {
-    const p = allPlayers.find(x => String(x.nr) === String(nr));
+  const getPlayerId = (player) => player?.id ?? player?.nr;
+  const getPlayerShirtNumber = (player) => player?.shirtNumber ?? player?.nr;
+  const getPlayerRef = (player) => getPlayerId(player);
+  const playerMatchesRef = (player, ref) =>
+    String(getPlayerId(player)) === String(ref) || String(player?.nr) === String(ref);
+
+  const sevenLabelA = (playerRef) => {
+    const p = allPlayers.find((x) => playerMatchesRef(x, playerRef));
     if (!p) return ["Mål", "Miss"];
     return p.role === "goalkeeper" ? ["Insläppt", "Räddning"] : ["Mål", "Miss"];
   };
@@ -56,14 +62,16 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
   return (
     <div ref={containerRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
       {allPlayers
-        .filter((p) => selectedPlayers.includes(p.nr))
+        .filter((p) => selectedPlayers.some((ref) => playerMatchesRef(p, ref)))
         .sort((a, b) => {
           const aIsGk = a.role === "goalkeeper" ? -1 : 1;
           const bIsGk = b.role === "goalkeeper" ? -1 : 1;
           return aIsGk - bIsGk || a.nr - b.nr;
         })
         .map((p) => {
-          const s = stats[p.nr] || {};
+          const playerRef = getPlayerRef(p);
+          const shirtNumber = getPlayerShirtNumber(p);
+          const s = stats[playerRef] || stats[p.nr] || {};
           const isGk = p.role === "goalkeeper";
 
           const btnBase = "px-3 py-2 rounded-xl text-sm font-semibold shadow w-full";
@@ -76,46 +84,46 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
 
           return (
             <div
-              key={p.nr}
+              key={playerRef}
               className={`border p-3 rounded-2xl relative ${isGk ? "bg-yellow-200" : "bg-blue-100"}`}
             >
-              <div className="font-semibold mb-2 text-center">#{p.nr} {p.name}</div>
+              <div className="font-semibold mb-2 text-center">#{shirtNumber} {p.name}</div>
 
               <div className="grid grid-cols-2 gap-2">
-                <PopButton className={`${btnBase} ${goalBtnClass}`} onClick={() => increment(p.nr, "goal")}>
+                <PopButton className={`${btnBase} ${goalBtnClass}`} onClick={() => increment(playerRef, "goal")}>
                   {isGk ? `Insläppt (${s.goal ?? 0})` : `Mål (${(s.goal ?? 0) + (s.sevenGoal ?? 0)})`}
                 </PopButton>
 
-                <PopButton className={`${btnBase} ${saveBtnClass}`} onClick={() => increment(p.nr, "save")}>
+                <PopButton className={`${btnBase} ${saveBtnClass}`} onClick={() => increment(playerRef, "save")}>
                   Räddn. ({s.save ?? 0})
                 </PopButton>
 
                 <PopButton
                   className={`${btnBase} ${assistBtnClass}`}
-                  onClick={() => increment(p.nr, "assist")}
+                  onClick={() => increment(playerRef, "assist")}
                 >
                   Assist ({s.assist ?? 0})
                 </PopButton>
 
-                <PopButton className={`${btnBase} ${missBtnClass}`} onClick={() => increment(p.nr, "miss")}>
+                <PopButton className={`${btnBase} ${missBtnClass}`} onClick={() => increment(playerRef, "miss")}>
                   Utanför ({isGk ? (s.miss ?? 0) : ((s.miss ?? 0) + (s.sevenMiss ?? 0))})
                 </PopButton>
 
-                <PopButton className={`${btnBase} ${postBtnClass}`} onClick={() => increment(p.nr, "post")}>
+                <PopButton className={`${btnBase} ${postBtnClass}`} onClick={() => increment(playerRef, "post")}>
                   Ribba ({s.post ?? 0})
                 </PopButton>
 
                 <PopButton
                   className={`${btnBase} ${moreBtnClass}`}
-                  onClick={() => setMenuFor(menuFor === p.nr ? null : p.nr)}
-                  aria-expanded={menuFor === p.nr}
+                  onClick={() => setMenuFor(menuFor === playerRef ? null : playerRef)}
+                  aria-expanded={menuFor === playerRef}
                   aria-haspopup="menu"
                 >
                   Mer ▾
                 </PopButton>
               </div>
 
-              {menuFor === p.nr && (
+              {menuFor === playerRef && (
                 <div
                   role="menu"
                   className="absolute z-20 right-3 top-[3.5rem] w-56 bg-white rounded-xl shadow-lg border p-2"
@@ -138,40 +146,40 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                     <button
                       className="px-2 py-1 rounded bg-gray-800 text-white text-xs"
                       onClick={() => {
-                        increment(p.nr, "sevenGoal");
+                        increment(playerRef, "sevenGoal");
                         setMenuFor(null);
                       }}
                     >
-                      {sevenLabelA(p.nr)[0]}
+                      {sevenLabelA(playerRef)[0]}
                     </button>
                     <button
                       className="px-2 py-1 rounded bg-gray-200 text-gray-900 text-xs"
                       onClick={() => {
-                        increment(p.nr, "sevenMiss");
+                        increment(playerRef, "sevenMiss");
                         setMenuFor(null);
                       }}
                     >
-                      {sevenLabelA(p.nr)[1]}
+                      {sevenLabelA(playerRef)[1]}
                     </button>
                   </div>
 
                   <button
                     className="w-full text-left px-3 py-1.5 rounded hover:bg-gray-100 text-sm"
-                    onClick={() => { increment(p.nr, "twoMin"); setMenuFor(null); }}
+                    onClick={() => { increment(playerRef, "twoMin"); setMenuFor(null); }}
                   >
                     Utvisning (2 min)
                   </button>
 
                   <button
                     className="w-full text-left px-3 py-1.5 rounded hover:bg-gray-100 text-sm"
-                    onClick={() => { increment(p.nr, "yellowCard"); setMenuFor(null); }}
+                    onClick={() => { increment(playerRef, "yellowCard"); setMenuFor(null); }}
                   >
                     Gult kort
                   </button>
 
                   <button
                     className="w-full text-left px-3 py-1.5 rounded hover:bg-gray-100 text-sm"
-                    onClick={() => { increment(p.nr, "redCard"); setMenuFor(null); }}
+                    onClick={() => { increment(playerRef, "redCard"); setMenuFor(null); }}
                   >
                     Rött kort
                   </button>
@@ -179,7 +187,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                   {isGk && (
                     <button
                       className="w-full text-left px-3 py-1.5 rounded hover:bg-gray-100 text-sm"
-                      onClick={() => { increment(p.nr, "gkScored"); setMenuFor(null); }}
+                      onClick={() => { increment(playerRef, "gkScored"); setMenuFor(null); }}
                     >
                       MV mål
                     </button>
@@ -187,7 +195,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
 
                   <button
                     className="w-full text-left px-3 py-1.5 rounded hover:bg-gray-100 text-sm"
-                    onClick={() => { increment(p.nr, "turnover"); setMenuFor(null); }}
+                    onClick={() => { increment(playerRef, "turnover"); setMenuFor(null); }}
                   >
                     Tekniskt fel
                   </button>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import TopBar from "./TopBar";
 import MatchView from "./MatchView";
 import StatsView from "./StatsView";
@@ -27,10 +27,16 @@ export default function MatchSession({
   const [logOpen, setLogOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  const playersByNr = useMemo(
-    () => new Map(allPlayers.map((player) => [String(player.nr), player])),
-    [allPlayers]
-  );
+  const getPlayerId = useCallback((player) => player?.id ?? player?.nr, []);
+
+  const playersByRef = useMemo(() => {
+    const map = new Map();
+    allPlayers.forEach((player) => {
+      map.set(String(getPlayerId(player)), player);
+      map.set(String(player.nr), player);
+    });
+    return map;
+  }, [allPlayers, getPlayerId]);
 
   return (
     <div>
@@ -47,6 +53,8 @@ export default function MatchSession({
         liveAway={liveAway}
         cupLabel={cupLabel}
       />
+
+
       <button
         type="button"
         onClick={() => setLogOpen(true)}
@@ -94,12 +102,12 @@ export default function MatchSession({
                 .slice()
                 .reverse()
                 .map((item) => {
-                  const player = playersByNr.get(String(item.nr));
+                  const player = playersByRef.get(String(item.playerId ?? item.nr));
                   const label = eventLabel(item.type, player);
 
                   return (
                     <div
-                      key={item.id || `${item.nr}_${item.type}_${item.time || ""}`}
+                      key={item.id || `${item.playerId ?? item.nr}_${item.type}_${item.time || ""}`}
                       className="flex items-center justify-between gap-2 border rounded-xl p-2"
                     >
                       <div className="min-w-0">

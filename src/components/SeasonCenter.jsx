@@ -1,10 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildMatchStatRow,
+  buildSeasonKpis as makeSeasonKpis,
+  buildSeasonSummary as makeSeasonSummary,
+  pct
+} from "../lib/appHelpers";
 
 export default function SeasonCenter({
   open,
   selectedTeam,
   seasonKpis,
   onExportBackup,
+  onImportBackup,
   onClose,
   seasonSummary,
   matches,
@@ -22,6 +29,9 @@ export default function SeasonCenter({
   const [seasonPlayerDetail, setSeasonPlayerDetail] = useState(null);
   const [seasonMatchPlayerFocus, setSeasonMatchPlayerFocus] = useState(null);
   const [seasonScope, setSeasonScope] = useState("all");
+  const [matchDeleteMode, setMatchDeleteMode] = useState(false);
+  const [selectedMatchIdsForDelete, setSelectedMatchIdsForDelete] = useState([]);
+  const importInputRef = useRef(null);
 
   useEffect(() => {
     if (!open) {
@@ -35,6 +45,8 @@ export default function SeasonCenter({
       setShowMatchesSearch(false);
       setSeasonMatchPlayerFocus(null);
       setSeasonScope("all");
+      setMatchDeleteMode(false);
+      setSelectedMatchIdsForDelete([]);
     }
   }, [open]);
 
@@ -106,153 +118,14 @@ export default function SeasonCenter({
   }, [matches, seasonScope]);
 
   const scopedSeasonSummary = useMemo(() => {
-    const n = (v) => {
-      const x = Number(v);
-      return Number.isFinite(x) ? x : 0;
-    };
-
-    const isGoalkeeperRow = (row) => {
-      const role = String(row?.role || "").toLowerCase();
-      return role === "goalkeeper" || n(row?.gkSaves) > 0 || n(row?.gkConceded) > 0;
-    };
-
-    const playerMap = new Map();
-
-    (scopedMatches || []).forEach((match) => {
-      const roster = Array.isArray(match?.playerRoster) ? match.playerRoster : [];
-      const statsMap = match?.stats || {};
-
-      const getStats = (p) => {
-        if (!p) return {};
-        return statsMap?.[p.nr] || statsMap?.[String(p.nr)] || {};
-      };
-
-      roster.forEach((player) => {
-        const key = `${player?.nr ?? ""}__${player?.name ?? ""}`;
-        const stats = getStats(player);
-        const row =
-          playerMap.get(key) ||
-          {
-            key,
-            nr: player?.nr ?? "",
-            name: player?.name ?? "",
-            role: player?.role || "field",
-            matches: 0,
-            goal: 0,
-            save: 0,
-            miss: 0,
-            wide: 0,
-            post: 0,
-            sevenGoal: 0,
-            sevenMiss: 0,
-            twoMin: 0,
-            suspension: 0,
-            yellowCard: 0,
-            redCard: 0,
-            gkScored: 0,
-            assist: 0,
-            turnover: 0,
-            goals: 0,
-            sevenGoals: 0,
-            sevenAttempts: 0,
-            attempts: 0,
-            gkSaves: 0,
-            gkConceded: 0,
-            gkShotsFaced: 0
-          };
-
-        row.matches += 1;
-
-        const cGoal = n(stats.goal);
-        const cSave = n(stats.save);
-        const cMiss = n(stats.miss);
-        const cWide = n(stats.wide ?? stats.miss);
-        const cPost = n(stats.post);
-        const cSevenGoal = n(stats.sevenGoal);
-        const cSevenMiss = n(stats.sevenMiss);
-        const cTwoMin = n(stats.twoMin);
-        const cSuspension = n(stats.suspension ?? stats.twoMin);
-        const cYellow = n(stats.yellowCard);
-        const cRed = n(stats.redCard);
-        const cGkScored = n(stats.gkScored);
-        const cAssist = n(stats.assist);
-        const cTurnover = n(stats.turnover);
-
-        row.goal += cGoal;
-        row.save += cSave;
-        row.miss += cMiss;
-        row.wide += cWide;
-        row.post += cPost;
-        row.sevenGoal += cSevenGoal;
-        row.sevenMiss += cSevenMiss;
-        row.twoMin += cTwoMin;
-        row.suspension += cSuspension;
-        row.yellowCard += cYellow;
-        row.redCard += cRed;
-        row.gkScored += cGkScored;
-        row.assist += cAssist;
-        row.turnover += cTurnover;
-
-        if (String(player?.role || "") === "goalkeeper") {
-          // `save` and `goal` already include the full goalkeeper totals.
-          // `sevenMiss` / `sevenGoal` should be shown as separate 7m columns,
-          // not added a second time into total saves/conceded.
-          const gkSaves = cSave;
-          const gkConceded = cGoal;
-          row.gkSaves += gkSaves;
-          row.gkConceded += gkConceded;
-          row.gkShotsFaced += gkSaves + gkConceded;
-          row.goals += cGkScored;
-        } else {
-          row.goals += cGoal + cSevenGoal;
-          row.sevenGoals += cSevenGoal;
-          row.sevenAttempts += cSevenGoal + cSevenMiss;
-          row.attempts += cGoal + cSevenGoal + cWide + cPost + cSevenMiss + cSave;
-        }
-
-        playerMap.set(key, row);
-      });
-    });
-
-    const allRows = Array.from(playerMap.values());
-    return {
-      fieldPlayers: allRows
-        .filter((row) => !isGoalkeeperRow(row))
-        .sort((a, b) => Number(a.nr) - Number(b.nr) || String(a.nr).localeCompare(String(b.nr), "sv")),
-      goalkeepers: allRows
-        .filter((row) => isGoalkeeperRow(row))
-        .sort((a, b) => Number(a.nr) - Number(b.nr) || String(a.nr).localeCompare(String(b.nr), "sv")),
-      matchCount: scopedMatches.length
-    };
-  }, [scopedMatches]);
+    return makeSeasonSummary(scopedMatches || [], selectedTeam ? [selectedTeam] : []);
+  }, [scopedMatches, selectedTeam]);
 
   const scopedSeasonKpis = useMemo(() => {
-    const n = (v) => {
-      const x = Number(v);
-      return Number.isFinite(x) ? x : 0;
-    };
-
-    const ourGoals = (scopedMatches || []).reduce((sum, match) => sum + getOurGoals(match), 0);
-    const oppGoals = (scopedMatches || []).reduce((sum, match) => sum + getOppGoals(match), 0);
-
-    const top3 = [...(scopedSeasonSummary.fieldPlayers || [])]
-      .sort((a, b) => n(b.goals) - n(a.goals) || n(b.attempts) - n(a.attempts))
-      .slice(0, 3);
-
-    return {
-      matchCount: scopedMatches.length,
-      ourGoals,
-      oppGoals,
-      top3
-    };
+    return makeSeasonKpis(scopedMatches || [], scopedSeasonSummary.fieldPlayers || []);
   }, [scopedMatches, scopedSeasonSummary.fieldPlayers]);
 
   const overviewHighlights = useMemo(() => {
-    const n = (v) => {
-      const x = Number(v);
-      return Number.isFinite(x) ? x : 0;
-    };
-
     const matchRows = (scopedMatches || []).map((match) => {
       const ourGoals = getOurGoals(match);
       const oppGoals = getOppGoals(match);
@@ -332,6 +205,20 @@ export default function SeasonCenter({
 
   if (!open) return null;
 
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !onImportBackup) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await onImportBackup(data);
+    } catch {
+      await onImportBackup({ invalid: true });
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-50">
       <div className="sticky top-0 z-10 bg-white border-b">
@@ -361,6 +248,26 @@ export default function SeasonCenter({
           </div>
 
           <div className="flex items-center gap-2">
+            {onImportBackup && (
+              <>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="px-3 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-sm font-semibold"
+                  title="Importera säsong från JSON"
+                >
+                  Importera
+                </button>
+              </>
+            )}
+
             <button
               type="button"
               onClick={onExportBackup}
@@ -368,18 +275,6 @@ export default function SeasonCenter({
               title="Ladda ner säsong som JSON"
             >
               ⬇️ Backup
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSeasonDangerOpen(true);
-                setSeasonDangerText("");
-              }}
-              className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold"
-              title="Rensa säsong"
-            >
-              ⚠️ Rensa
             </button>
 
             <button
@@ -498,6 +393,28 @@ export default function SeasonCenter({
                 <li>Här ser du totalsiffror, spelare och matcher för säsongen.</li>
               </ol>
             </div>
+
+            <div className="bg-white border border-red-100 rounded-2xl p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-bold text-red-700">Farlig åtgärd</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    Rensa tar bort alla sparade matcher för valt lag.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSeasonDangerOpen(true);
+                    setSeasonDangerText("");
+                  }}
+                  className="self-start rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 sm:self-auto"
+                  title="Rensa säsong"
+                >
+                  Rensa säsong
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -542,8 +459,10 @@ export default function SeasonCenter({
                           <th className="text-left p-2 border">#</th>
                           <th className="text-left p-2 border">Målvakt</th>
                           <th className="text-right p-2 border">Matcher</th>
-                          <th className="text-right p-2 border">Rädd</th>
-                          <th className="text-right p-2 border">Insläppt</th>
+                          <th className="text-right p-2 border">Totalt rädd</th>
+                          <th className="text-right p-2 border">Rädd spel</th>
+                          <th className="text-right p-2 border">Totalt insl</th>
+                          <th className="text-right p-2 border">Insl. spel</th>
                           <th className="text-right p-2 border">Rädd%</th>
                           <th className="text-right p-2 border">7m Insl</th>
                           <th className="text-right p-2 border">7m Rädd</th>
@@ -554,10 +473,7 @@ export default function SeasonCenter({
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredGoalkeepers.map((row) => {
-                          const denom = row.gkSaves + row.gkConceded;
-                          const pct = denom > 0 ? Math.round((row.gkSaves / denom) * 100) : 0;
-                          return (
+                        {filteredGoalkeepers.map((row) => (
                             <tr
                               key={row.key}
                               onClick={() => setSeasonPlayerDetail({ ...row, type: "gk" })}
@@ -567,8 +483,10 @@ export default function SeasonCenter({
                               <td className="p-2 border">{row.name}</td>
                               <td className="p-2 border text-right">{row.matches}</td>
                               <td className="p-2 border text-right">{row.gkSaves}</td>
+                              <td className="p-2 border text-right">{row.save}</td>
                               <td className="p-2 border text-right">{row.gkConceded}</td>
-                              <td className="p-2 border text-right">{pct}%</td>
+                              <td className="p-2 border text-right">{row.goal}</td>
+                              <td className="p-2 border text-right">{row.savePct}</td>
                               <td className="p-2 border text-right">{row.sevenGoal ?? 0}</td>
                               <td className="p-2 border text-right">{row.sevenMiss ?? 0}</td>
                               <td className="p-2 border text-right">{row.gkScored ?? 0}</td>
@@ -576,8 +494,7 @@ export default function SeasonCenter({
                               <td className="p-2 border text-right">{row.yellowCard ?? 0}</td>
                               <td className="p-2 border text-right">{row.redCard ?? 0}</td>
                             </tr>
-                          );
-                        })}
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -591,7 +508,8 @@ export default function SeasonCenter({
                       <th className="text-left p-2 border">#</th>
                       <th className="text-left p-2 border">Spelare</th>
                       <th className="text-right p-2 border">Matcher</th>
-                      <th className="text-right p-2 border">Mål</th>
+                      <th className="text-right p-2 border">Totalt mål</th>
+                      <th className="text-right p-2 border">Spelmål</th>
                       <th className="text-right p-2 border">Assist</th>
                       <th className="text-right p-2 border">Tek.fel</th>
                       <th className="text-right p-2 border">Utanför</th>
@@ -606,10 +524,7 @@ export default function SeasonCenter({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFieldPlayers.map((row) => {
-                      const pct = row.attempts > 0 ? Math.round((row.goals / row.attempts) * 100) : 0;
-                      const sevenAtt = Math.max(row.sevenAttempts, row.sevenGoals);
-                      return (
+                    {filteredFieldPlayers.map((row) => (
                         <tr
                           key={row.key}
                           onClick={() => setSeasonPlayerDetail({ ...row, type: "fp" })}
@@ -619,6 +534,7 @@ export default function SeasonCenter({
                           <td className="p-2 border">{row.name}</td>
                           <td className="p-2 border text-right">{row.matches}</td>
                           <td className="p-2 border text-right">{row.goals}</td>
+                          <td className="p-2 border text-right">{row.goal}</td>
                           <td className="p-2 border text-right">{row.assist ?? 0}</td>
                           <td className="p-2 border text-right">{row.turnover ?? 0}</td>
                           <td className="p-2 border text-right">{row.wide ?? row.miss ?? 0}</td>
@@ -626,13 +542,12 @@ export default function SeasonCenter({
                           <td className="p-2 border text-right">{row.sevenGoals}</td>
                           <td className="p-2 border text-right">{row.sevenMiss ?? 0}</td>
                           <td className="p-2 border text-right">{row.attempts}</td>
-                          <td className="p-2 border text-right">{pct}%</td>
+                          <td className="p-2 border text-right">{row.shotPct}</td>
                           <td className="p-2 border text-right">{row.suspension ?? row.twoMin ?? 0}</td>
                           <td className="p-2 border text-right">{row.yellowCard ?? 0}</td>
                           <td className="p-2 border text-right">{row.redCard ?? 0}</td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -645,7 +560,7 @@ export default function SeasonCenter({
             <div className="bg-white border rounded-2xl p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-sm font-semibold">Matcher</div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowMatchesSearch((v) => !v)}
@@ -665,8 +580,58 @@ export default function SeasonCenter({
                       autoFocus
                     />
                   )}
+                  {matchDeleteMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMatchDeleteMode(false);
+                          setSelectedMatchIdsForDelete([]);
+                        }}
+                        className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold border border-black/10"
+                      >
+                        Avbryt
+                      </button>
+                      <button
+                        type="button"
+                        disabled={selectedMatchIdsForDelete.length === 0}
+                        onClick={() => {
+                          const count = selectedMatchIdsForDelete.length;
+                          if (!window.confirm(`Ta bort ${count} match${count === 1 ? "" : "er"} från säsongen?`)) {
+                            return;
+                          }
+                          selectedMatchIdsForDelete.forEach((matchId) => onDeleteMatch(matchId));
+                          setSelectedMatchIdsForDelete([]);
+                          setMatchDeleteMode(false);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-sm font-semibold ${
+                          selectedMatchIdsForDelete.length > 0
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-red-200 text-white cursor-not-allowed"
+                        }`}
+                      >
+                        Ta bort valda ({selectedMatchIdsForDelete.length})
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMatchDeleteMode(true);
+                        setSelectedMatchIdsForDelete([]);
+                      }}
+                      className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold border border-red-100"
+                    >
+                      Ta bort
+                    </button>
+                  )}
                 </div>
               </div>
+              {matchDeleteMode && (
+                <div className="text-xs text-red-700 mt-2">
+                  Välj matcherna som ska tas bort och tryck sedan på Ta bort valda.
+                </div>
+              )}
               {showMatchesSearch && (
                 <div className="text-xs text-slate-500 mt-2">Tips: Du kan söka på datum, motståndare, hemma/borta eller resultat (t.ex. 23-21).</div>
               )}
@@ -676,14 +641,31 @@ export default function SeasonCenter({
               ) : (
                 <div className="mt-3 space-y-2">
                   {filteredMatches.map((match) => (
+                    (() => {
+                      const selectedForDelete = selectedMatchIdsForDelete.includes(match.id);
+                      return (
                     <div
                       key={match.id}
-                      onClick={() => {
-                        setSeasonMatchPlayerFocus(null);
-                        setSeasonMatchDetail(match);
-                      }}
-                      className="border rounded-2xl p-3 flex items-center justify-between gap-3 bg-white cursor-pointer hover:bg-slate-50"
+                      className={`border rounded-2xl p-3 flex items-center justify-between gap-3 bg-white ${
+                        selectedForDelete ? "border-red-300 bg-red-50" : ""
+                      }`}
                     >
+                      {matchDeleteMode && (
+                        <input
+                          type="checkbox"
+                          checked={selectedForDelete}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            setSelectedMatchIdsForDelete((prev) =>
+                              checked
+                                ? [...prev, match.id]
+                                : prev.filter((matchId) => matchId !== match.id)
+                            );
+                          }}
+                          className="h-5 w-5 shrink-0"
+                          aria-label="Välj match för borttagning"
+                        />
+                      )}
                       <div className="min-w-0">
                         <div className="text-xs text-slate-500">
                           {match.matchInfo?.date || "-"} • {match.matchInfo?.location || "-"}
@@ -701,21 +683,22 @@ export default function SeasonCenter({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm("Ta bort denna match från säsongen?")) {
-                            onDeleteMatch(match.id);
-                          }
-                        }}
-                        className="shrink-0 px-2 py-2 rounded-lg bg-red-50 hover:bg-red-100"
-                        aria-label="Ta bort match"
-                        title="Ta bort"
-                      >
-                        🗑️
-                      </button>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={matchDeleteMode}
+                          onClick={() => {
+                            setSeasonMatchPlayerFocus(null);
+                            setSeasonMatchDetail(match);
+                          }}
+                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Visa
+                        </button>
+                      </div>
                     </div>
+                      );
+                    })()
                   ))}
                 </div>
               )}
@@ -749,68 +732,35 @@ export default function SeasonCenter({
             </div>
 
             {(() => {
-              const toN = (v) => {
-                const n = Number(v);
-                return Number.isFinite(n) ? n : 0;
-              };
-
               const normKey = (v) => String(v ?? "").toLowerCase().trim();
 
+              const playerId = String(seasonPlayerDetail?.id ?? "").trim();
               const playerNr = String(seasonPlayerDetail?.nr ?? "").trim();
               const playerName = String(seasonPlayerDetail?.name ?? "").trim();
               const isGk = seasonPlayerDetail?.type === "gk";
 
-              const getPlayerStatsFromMatch = (m) => {
+              const getPlayerFromMatch = (m) => {
                 const roster = Array.isArray(m?.playerRoster) ? m.playerRoster : [];
-                const statsMap = m?.stats || {};
-
-                const rosterHit = roster.find((p) => {
-                  const nr = String(p?.nr ?? "").trim();
-                  const name = String(p?.name ?? "").trim();
-                  return (playerNr && nr === playerNr) || (playerName && name === playerName);
-                });
-
-                const id = rosterHit?.id;
-                const idStr = id != null ? String(id) : "";
-                const nrStr = rosterHit?.nr != null ? String(rosterHit.nr) : playerNr;
-                const nameStr = (rosterHit?.name || playerName || "").trim();
-
-                if (Array.isArray(statsMap)) {
-                  const hit =
-                    (idStr ? statsMap.find((x) => String(x?.id ?? "") === idStr) : null) ||
-                    (idStr ? statsMap.find((x) => String(x?.playerId ?? "") === idStr) : null) ||
-                    (nrStr ? statsMap.find((x) => String(x?.nr ?? "") === nrStr) : null) ||
-                    (nameStr ? statsMap.find((x) => String(x?.name ?? "").trim() === nameStr) : null);
-                  return hit?.stats || hit || {};
-                }
-
-                const obj = statsMap || {};
                 return (
-                  (id != null ? obj[id] : null) ||
-                  (idStr ? obj[idStr] : null) ||
-                  (nrStr ? obj[nrStr] : null) ||
-                  (nameStr ? obj[nameStr] : null) ||
-                  (obj.players && ((idStr ? obj.players[idStr] : null) || (id != null ? obj.players[id] : null))) ||
-                  {}
+                  roster.find((p) => playerId && String(p?.id ?? "") === playerId) ||
+                  roster.find((p) => playerNr && String(p?.nr ?? p?.shirtNumber ?? "").trim() === playerNr) ||
+                  {
+                    id: seasonPlayerDetail?.id,
+                    nr: seasonPlayerDetail?.nr,
+                    shirtNumber: seasonPlayerDetail?.nr,
+                    name: seasonPlayerDetail?.name,
+                    role: isGk ? "goalkeeper" : "field"
+                  }
                 );
               };
 
               const playerMatchRows = (matches || [])
                 .map((m) => {
-                  const s = getPlayerStatsFromMatch(m);
-
-                  const goal = toN(s.goal);
-                  const save = toN(s.save);
-                  const wide = toN(s.wide);
-                  const post = toN(s.post);
-                  const suspension = toN(s.suspension);
-                  const sevenGoal = toN(s.sevenGoal);
-                  const sevenMiss = toN(s.sevenMiss);
-                  const gkScored = toN(s.gkScored);
-
-                  const attempts = goal + save + wide + post + sevenGoal + sevenMiss;
-                  const totalGoals = goal + sevenGoal;
-                  const shotPct = attempts > 0 ? Math.round((totalGoals / attempts) * 100) : 0;
+                  const player = getPlayerFromMatch(m);
+                  const row = buildMatchStatRow(
+                    { ...player, role: isGk ? "goalkeeper" : "field" },
+                    m?.stats || {}
+                  );
 
                   return {
                     match: m,
@@ -818,29 +768,49 @@ export default function SeasonCenter({
                     opponent: m?.matchInfo?.opponent || "",
                     location: m?.matchInfo?.location || "",
                     score: `${m?.result?.home ?? 0}-${m?.result?.away ?? 0}`,
-                    goal,
-                    totalGoals,
-                    save,
-                    wide,
-                    post,
-                    suspension,
-                    sevenGoal,
-                    sevenMiss,
-                    gkScored,
-                    attempts,
-                    shotPct
+                    goal: isGk ? row.gkConceded : row.goal,
+                    goalOpen: row.goal,
+                    totalGoals: row.goals,
+                    save: isGk ? row.gkSaves : row.save,
+                    saveOpen: row.save,
+                    gkSaves: row.gkSaves,
+                    gkConceded: row.gkConceded,
+                    wide: row.miss,
+                    post: row.post,
+                    suspension: row.twoMin,
+                    sevenGoal: row.sevenGoal,
+                    sevenMiss: row.sevenMiss,
+                    gkScored: row.gkScored,
+                    yellowCard: row.yellowCard,
+                    redCard: row.redCard,
+                    attempts: row.attempts,
+                    shotPct: row.shotPct
                   };
                 })
                 .filter((r) => {
                   const hasAny =
-                    r.goal || r.save || r.wide || r.post || r.suspension || r.sevenGoal || r.sevenMiss || r.gkScored;
+                    r.goal ||
+                    r.save ||
+                    r.wide ||
+                    r.post ||
+                    r.suspension ||
+                    r.sevenGoal ||
+                    r.sevenMiss ||
+                    r.gkScored ||
+                    r.yellowCard ||
+                    r.redCard;
                   if (hasAny) return true;
 
                   const roster = Array.isArray(r.match?.playerRoster) ? r.match.playerRoster : [];
                   return roster.some((p) => {
                     const nr = normKey(p?.nr);
                     const name = normKey(p?.name);
-                    return (playerNr && nr === normKey(playerNr)) || (playerName && name === normKey(playerName));
+                    const id = normKey(p?.id);
+                    return (
+                      (playerId && id === normKey(playerId)) ||
+                      (playerNr && nr === normKey(playerNr)) ||
+                      (!playerId && !playerNr && playerName && name === normKey(playerName))
+                    );
                   });
                 })
                 .sort((a, b) => String(a.date).localeCompare(String(b.date), "sv"));
@@ -849,35 +819,42 @@ export default function SeasonCenter({
                 (acc, r) => {
                   acc.matches += 1;
                   acc.goal += r.goal;
+                  acc.goalOpen += r.goalOpen;
                   acc.totalGoals += r.totalGoals;
                   acc.save += r.save;
+                  acc.saveOpen += r.saveOpen;
                   acc.wide += r.wide;
                   acc.post += r.post;
                   acc.suspension += r.suspension;
                   acc.sevenGoal += r.sevenGoal;
                   acc.sevenMiss += r.sevenMiss;
                   acc.gkScored += r.gkScored;
+                  acc.yellowCard += r.yellowCard;
+                  acc.redCard += r.redCard;
                   acc.attempts += r.attempts;
                   return acc;
                 },
                 {
                   matches: 0,
                   goal: 0,
+                  goalOpen: 0,
                   totalGoals: 0,
                   save: 0,
+                  saveOpen: 0,
                   wide: 0,
                   post: 0,
                   suspension: 0,
                   sevenGoal: 0,
                   sevenMiss: 0,
                   gkScored: 0,
+                  yellowCard: 0,
+                  redCard: 0,
                   attempts: 0
                 }
               );
 
-              const shotPct = totals.attempts > 0 ? Math.round((totals.totalGoals / totals.attempts) * 100) : 0;
-              const gkDenom = totals.save + totals.goal;
-              const gkPct = gkDenom > 0 ? Math.round((totals.save / gkDenom) * 100) : 0;
+              const shotPct = pct(totals.totalGoals, totals.attempts);
+              const gkPct = pct(totals.save, totals.save + totals.goal);
 
               return (
                 <div className="mt-4 space-y-4">
@@ -889,19 +866,25 @@ export default function SeasonCenter({
                     {isGk ? (
                       <>
                         <div>
-                          Rädd: <strong>{totals.save}</strong>
+                          Totalt rädd: <strong>{totals.save}</strong>
                         </div>
                         <div>
-                          Insläppt: <strong>{totals.goal}</strong>
+                          Rädd spel: <strong>{totals.saveOpen}</strong> • 7m rädd: <strong>{totals.sevenMiss}</strong>
                         </div>
                         <div>
-                          Rädd%: <strong>{gkPct}%</strong>
+                          Totalt insläppt: <strong>{totals.goal}</strong>
+                        </div>
+                        <div>
+                          Insl. spel: <strong>{totals.goalOpen}</strong> • 7m insl: <strong>{totals.sevenGoal}</strong>
+                        </div>
+                        <div>
+                          Rädd%: <strong>{gkPct}</strong>
                         </div>
                         <div>
                           Utvisningar: <strong>{totals.suspension}</strong>
                         </div>
                         <div>
-                          7m mål: <strong>{totals.sevenGoal}</strong> • 7m miss: <strong>{totals.sevenMiss}</strong>
+                          Gult: <strong>{totals.yellowCard}</strong> • Rött: <strong>{totals.redCard}</strong>
                         </div>
                         <div>
                           GK mål: <strong>{totals.gkScored}</strong>
@@ -910,10 +893,10 @@ export default function SeasonCenter({
                     ) : (
                       <>
                         <div>
-                          Mål (inkl 7m): <strong>{totals.totalGoals}</strong>
+                          Totalt mål: <strong>{totals.totalGoals}</strong>
                         </div>
                         <div>
-                          Avslut: <strong>{totals.attempts}</strong> • Skott%: <strong>{shotPct}%</strong>
+                          Avslut: <strong>{totals.attempts}</strong> • Skott%: <strong>{shotPct}</strong>
                         </div>
                         <div>
                           Rädd: <strong>{totals.save}</strong> • Utanför: <strong>{totals.wide}</strong> • Ribba: <strong>{totals.post}</strong>
@@ -923,6 +906,9 @@ export default function SeasonCenter({
                         </div>
                         <div>
                           Utvisningar: <strong>{totals.suspension}</strong>
+                        </div>
+                        <div>
+                          Gult: <strong>{totals.yellowCard}</strong> • Rött: <strong>{totals.redCard}</strong>
                         </div>
                       </>
                     )}
@@ -940,23 +926,30 @@ export default function SeasonCenter({
                             <th className="text-right p-2 border">Resultat</th>
                             {isGk ? (
                               <>
-                                <th className="text-right p-2 border">Rädd</th>
-                                <th className="text-right p-2 border">Insläppt</th>
+                                <th className="text-right p-2 border">Totalt rädd</th>
+                                <th className="text-right p-2 border">Rädd spel</th>
+                                <th className="text-right p-2 border">Totalt insl</th>
+                                <th className="text-right p-2 border">Insl. spel</th>
                                 <th className="text-right p-2 border">Rädd%</th>
                                 <th className="text-right p-2 border">Utvisn</th>
-                                <th className="text-right p-2 border">7m mål</th>
-                                <th className="text-right p-2 border">7m miss</th>
+                                <th className="text-right p-2 border">Gult</th>
+                                <th className="text-right p-2 border">Rött</th>
+                                <th className="text-right p-2 border">7m insl</th>
+                                <th className="text-right p-2 border">7m rädd</th>
                                 <th className="text-right p-2 border">GK mål</th>
                               </>
                             ) : (
                               <>
-                                <th className="text-right p-2 border">Mål</th>
+                                <th className="text-right p-2 border">Totalt mål</th>
+                                <th className="text-right p-2 border">Spelmål</th>
                                 <th className="text-right p-2 border">Rädd</th>
                                 <th className="text-right p-2 border">Utanför</th>
                                 <th className="text-right p-2 border">Ribba</th>
                                 <th className="text-right p-2 border">7m mål</th>
                                 <th className="text-right p-2 border">7m miss</th>
                                 <th className="text-right p-2 border">Utvisn</th>
+                                <th className="text-right p-2 border">Gult</th>
+                                <th className="text-right p-2 border">Rött</th>
                                 <th className="text-right p-2 border">Avslut</th>
                                 <th className="text-right p-2 border">Skott%</th>
                               </>
@@ -967,8 +960,7 @@ export default function SeasonCenter({
                         <tbody>
                           {playerMatchRows.map((r) => {
                             const m = r.match;
-                            const gkDen = r.save + r.goal;
-                            const gkP = gkDen > 0 ? Math.round((r.save / gkDen) * 100) : 0;
+                            const gkP = pct(r.save, r.save + r.goal);
                             return (
                           <tr
                             key={m.id}
@@ -988,9 +980,13 @@ export default function SeasonCenter({
                                 {isGk ? (
                                   <>
                                     <td className="p-2 border text-right">{r.save}</td>
+                                    <td className="p-2 border text-right">{r.saveOpen}</td>
                                     <td className="p-2 border text-right">{r.goal}</td>
-                                    <td className="p-2 border text-right">{gkP}%</td>
+                                    <td className="p-2 border text-right">{r.goalOpen}</td>
+                                    <td className="p-2 border text-right">{gkP}</td>
                                     <td className="p-2 border text-right">{r.suspension}</td>
+                                    <td className="p-2 border text-right">{r.yellowCard}</td>
+                                    <td className="p-2 border text-right">{r.redCard}</td>
                                     <td className="p-2 border text-right">{r.sevenGoal}</td>
                                     <td className="p-2 border text-right">{r.sevenMiss}</td>
                                     <td className="p-2 border text-right">{r.gkScored}</td>
@@ -998,14 +994,17 @@ export default function SeasonCenter({
                                 ) : (
                                   <>
                                     <td className="p-2 border text-right">{r.totalGoals}</td>
+                                    <td className="p-2 border text-right">{r.goal}</td>
                                     <td className="p-2 border text-right">{r.save}</td>
                                     <td className="p-2 border text-right">{r.wide}</td>
                                     <td className="p-2 border text-right">{r.post}</td>
                                     <td className="p-2 border text-right">{r.sevenGoal}</td>
                                     <td className="p-2 border text-right">{r.sevenMiss}</td>
                                     <td className="p-2 border text-right">{r.suspension}</td>
+                                    <td className="p-2 border text-right">{r.yellowCard}</td>
+                                    <td className="p-2 border text-right">{r.redCard}</td>
                                     <td className="p-2 border text-right">{r.attempts}</td>
-                                    <td className="p-2 border text-right">{r.shotPct}%</td>
+                                    <td className="p-2 border text-right">{r.shotPct}</td>
                                   </>
                                 )}
                                 <td className="p-2 border text-right min-w-[72px] sticky right-0 bg-white">
@@ -1016,6 +1015,7 @@ export default function SeasonCenter({
                                       // Open same match directly in player focus
                                       setSeasonPlayerDetail(null);
                                       setSeasonMatchPlayerFocus({
+                                        id: seasonPlayerDetail?.id,
                                         nr: seasonPlayerDetail?.nr,
                                         name: seasonPlayerDetail?.name,
                                         type: seasonPlayerDetail?.type
@@ -1089,11 +1089,6 @@ export default function SeasonCenter({
                 : [];
               const statsMap = seasonMatchDetail?.stats || {};
 
-              const toN = (v) => {
-                const n = Number(v);
-                return Number.isFinite(n) ? n : 0;
-              };
-
               const normKey = (v) => String(v ?? "").toLowerCase().trim();
 
               // Build a set of known goalkeepers.
@@ -1137,7 +1132,7 @@ export default function SeasonCenter({
 
               const isGkByRoster = (p) => {
                 const pos = String(p?.position || "").toUpperCase();
-                return pos === "GK" || pos === "G" || p?.isGoalkeeper === true;
+                return p?.role === "goalkeeper" || pos === "GK" || pos === "G" || p?.isGoalkeeper === true;
               };
 
               const isKnownGk = (p) => {
@@ -1147,91 +1142,53 @@ export default function SeasonCenter({
 
               const isGoalkeeperForMatch = (p) => isGkByRoster(p) || isKnownGk(p);
 
-              // Helper to find the correct stats object for a player
-              const getPlayerStats = (p) => {
-                if (!p) return {};
-
-                // Common identifiers
-                const id = p.id;
-                const idStr = id != null ? String(id) : "";
-                const nrStr = p.nr != null ? String(p.nr) : "";
-                const nameStr = (p.name || "").trim();
-
-                // If statsMap is an array of entries, try to find a matching entry.
-                if (Array.isArray(statsMap)) {
-                  const hit =
-                    statsMap.find((x) => String(x?.id ?? "") === idStr) ||
-                    statsMap.find((x) => String(x?.playerId ?? "") === idStr) ||
-                    (nrStr ? statsMap.find((x) => String(x?.nr ?? "") === nrStr) : null) ||
-                    (nameStr ? statsMap.find((x) => String(x?.name ?? "").trim() === nameStr) : null);
-                  return hit?.stats || hit || {};
-                }
-
-                // If statsMap is an object, try multiple key variants.
-                const obj = statsMap || {};
-                return (
-                  obj[id] ||
-                  (idStr ? obj[idStr] : null) ||
-                  (nrStr ? obj[nrStr] : null) ||
-                  (nameStr ? obj[nameStr] : null) ||
-                  // Some shapes may nest under `players`
-                  (obj.players && (obj.players[id] || (idStr ? obj.players[idStr] : null))) ||
-                  {}
-                );
-              };
-
               const rows = roster.map((p) => {
-                const s = getPlayerStats(p);
-
-                const goals = toN(s.goal);
-                const saves = toN(s.save);
-                const wide = toN(s.wide);
-                const post = toN(s.post);
-                const suspension = toN(s.suspension);
-                const sevenGoal = toN(s.sevenGoal);
-                const sevenMiss = toN(s.sevenMiss);
-                const gkScored = toN(s.gkScored);
-
-                // Avslut-definition (utespelare): mål + rädd + utanför + stolpe + 7m mål + 7m miss
-                const attempts = goals + saves + wide + post + sevenGoal + sevenMiss;
-                // Totala mål för utespelare inkluderar 7m-mål
-                const totalGoals = goals + sevenGoal;
-
                 const isGoalkeeper = isGoalkeeperForMatch(p);
+                const row = buildMatchStatRow(
+                  { ...p, role: isGoalkeeper ? "goalkeeper" : "field" },
+                  statsMap
+                );
 
                 return {
                   id: p?.id,
                   nr: p?.nr ?? "",
                   name: p?.name ?? "",
                   position: p?.position,
-                  goals,
-                  totalGoals,
-                  saves,
-                  wide,
-                  post,
-                  suspension,
-                  sevenGoal,
-                  sevenMiss,
-                  gkScored,
-                  attempts,
-                  isGoalkeeper
+                  goals: isGoalkeeper ? row.gkConceded : row.goal,
+                  goalOpen: row.goal,
+                  totalGoals: row.goals,
+                  saves: isGoalkeeper ? row.gkSaves : row.save,
+                  saveOpen: row.save,
+                  wide: row.miss,
+                  post: row.post,
+                  suspension: row.twoMin,
+                  sevenGoal: row.sevenGoal,
+                  sevenMiss: row.sevenMiss,
+                  gkScored: row.gkScored,
+                  yellowCard: row.yellowCard,
+                  redCard: row.redCard,
+                  attempts: row.attempts,
+                  isGoalkeeper,
+                  gkConceded: row.gkConceded,
+                  savePct: row.savePct,
+                  shotPct: row.shotPct
                 };
               });
 
               // --- PLAYER FOCUS LOGIC ---
               const focus = seasonMatchPlayerFocus;
               const focusKey = focus ? `${normKey(focus.nr)}|${normKey(focus.name)}` : null;
+              const focusId = focus?.id != null ? String(focus.id) : "";
 
               const matchFocusRow = focus
-                ? rows.find((r) => `${normKey(r.nr)}|${normKey(r.name)}` === focusKey)
+                ? rows.find((r) => (focusId && String(r.id ?? "") === focusId) || `${normKey(r.nr)}|${normKey(r.name)}` === focusKey)
                 : null;
 
               if (focus && matchFocusRow) {
                 const r = matchFocusRow;
                 const isGK = r.isGoalkeeper;
-                const gkDen = r.saves + r.goals;
-                const gkPct = gkDen > 0 ? Math.round((r.saves / gkDen) * 100) : 0;
-                const fpPct = r.attempts > 0 ? Math.round((r.totalGoals / r.attempts) * 100) : 0;
+                const gkPct = pct(r.saves, r.saves + r.goals);
+                const fpPct = r.shotPct;
 
                 return (
                   <div className="mt-4 space-y-4">
@@ -1254,28 +1211,44 @@ export default function SeasonCenter({
                           <table className="w-full text-sm border bg-white">
                             <tbody>
                               <tr>
-                                <td className="p-2 border">Rädd</td>
+                                <td className="p-2 border">Totalt rädd</td>
                                 <td className="p-2 border text-right"><strong>{r.saves}</strong></td>
                               </tr>
                               <tr>
-                                <td className="p-2 border">Insläppt</td>
+                                <td className="p-2 border">Rädd spel</td>
+                                <td className="p-2 border text-right"><strong>{r.saveOpen}</strong></td>
+                              </tr>
+                              <tr>
+                                <td className="p-2 border">7m rädd</td>
+                                <td className="p-2 border text-right"><strong>{r.sevenMiss}</strong></td>
+                              </tr>
+                              <tr>
+                                <td className="p-2 border">Totalt insläppt</td>
                                 <td className="p-2 border text-right"><strong>{r.goals}</strong></td>
                               </tr>
                               <tr>
+                                <td className="p-2 border">Insl. spel</td>
+                                <td className="p-2 border text-right"><strong>{r.goalOpen}</strong></td>
+                              </tr>
+                              <tr>
+                                <td className="p-2 border">7m insl</td>
+                                <td className="p-2 border text-right"><strong>{r.sevenGoal}</strong></td>
+                              </tr>
+                              <tr>
                                 <td className="p-2 border">Rädd%</td>
-                                <td className="p-2 border text-right"><strong>{gkPct}%</strong></td>
+                                <td className="p-2 border text-right"><strong>{gkPct}</strong></td>
                               </tr>
                               <tr>
                                 <td className="p-2 border">Utvisningar</td>
                                 <td className="p-2 border text-right"><strong>{r.suspension}</strong></td>
                               </tr>
                               <tr>
-                                <td className="p-2 border">7m mål</td>
-                                <td className="p-2 border text-right"><strong>{r.sevenGoal}</strong></td>
+                                <td className="p-2 border">Gult</td>
+                                <td className="p-2 border text-right"><strong>{r.yellowCard}</strong></td>
                               </tr>
                               <tr>
-                                <td className="p-2 border">7m miss</td>
-                                <td className="p-2 border text-right"><strong>{r.sevenMiss}</strong></td>
+                                <td className="p-2 border">Rött</td>
+                                <td className="p-2 border text-right"><strong>{r.redCard}</strong></td>
                               </tr>
                               <tr>
                                 <td className="p-2 border">GK mål</td>
@@ -1297,7 +1270,7 @@ export default function SeasonCenter({
                           <table className="w-full text-sm border bg-white">
                             <tbody>
                               <tr>
-                                <td className="p-2 border">Mål (spel)</td>
+                                <td className="p-2 border">Spelmål</td>
                                 <td className="p-2 border text-right"><strong>{r.goals}</strong></td>
                               </tr>
                               <tr>
@@ -1318,7 +1291,7 @@ export default function SeasonCenter({
                               </tr>
                               <tr>
                                 <td className="p-2 border">Skott%</td>
-                                <td className="p-2 border text-right"><strong>{fpPct}%</strong></td>
+                                <td className="p-2 border text-right"><strong>{fpPct}</strong></td>
                               </tr>
                               <tr>
                                 <td className="p-2 border">Rädd (skott räddat)</td>
@@ -1336,6 +1309,14 @@ export default function SeasonCenter({
                                 <td className="p-2 border">Utvisningar</td>
                                 <td className="p-2 border text-right"><strong>{r.suspension}</strong></td>
                               </tr>
+                              <tr>
+                                <td className="p-2 border">Gult</td>
+                                <td className="p-2 border text-right"><strong>{r.yellowCard}</strong></td>
+                              </tr>
+                              <tr>
+                                <td className="p-2 border">Rött</td>
+                                <td className="p-2 border text-right"><strong>{r.redCard}</strong></td>
+                              </tr>
                             </tbody>
                           </table>
                         </div>
@@ -1348,16 +1329,12 @@ export default function SeasonCenter({
 
               const gks = rows
                 .filter((r) => r.isGoalkeeper)
-                .map((r) => {
-                  const denom = r.saves + r.goals; // goals = insläppta för målvakt
-                  const pct = denom > 0 ? Math.round((r.saves / denom) * 100) : 0;
-                  return {
-                    ...r,
-                    gkSaves: r.saves,
-                    gkConceded: r.goals,
-                    gkPct: pct
-                  };
-                })
+                .map((r) => ({
+                  ...r,
+                  gkSaves: r.saves,
+                  gkConceded: r.goals,
+                  gkPct: r.savePct
+                }))
                 .sort((a, b) =>
                   Number(a.nr) - Number(b.nr) ||
                   String(a.nr).localeCompare(String(b.nr), "sv") ||
@@ -1366,11 +1343,7 @@ export default function SeasonCenter({
 
               const fps = rows
                 .filter((r) => !r.isGoalkeeper)
-                .map((r) => {
-                  const pct = r.attempts > 0 ? Math.round((r.totalGoals / r.attempts) * 100) : 0;
-                  const sevenAtt = r.sevenGoal + r.sevenMiss;
-                  return { ...r, shotPct: pct, sevenAtt };
-                })
+                .map((r) => ({ ...r, sevenAtt: r.sevenGoal + r.sevenMiss }))
                 .sort((a, b) =>
                   Number(a.nr) - Number(b.nr) ||
                   String(a.nr).localeCompare(String(b.nr), "sv") ||
@@ -1388,12 +1361,16 @@ export default function SeasonCenter({
                             <tr>
                               <th className="text-left p-2 border">#</th>
                               <th className="text-left p-2 border">Målvakt</th>
-                              <th className="text-right p-2 border">Rädd</th>
-                              <th className="text-right p-2 border">Insläppt</th>
+                              <th className="text-right p-2 border">Totalt rädd</th>
+                              <th className="text-right p-2 border">Rädd spel</th>
+                              <th className="text-right p-2 border">Totalt insl</th>
+                              <th className="text-right p-2 border">Insl. spel</th>
                               <th className="text-right p-2 border">Rädd%</th>
                               <th className="text-right p-2 border">Utvisn</th>
-                              <th className="text-right p-2 border">7m mål</th>
-                              <th className="text-right p-2 border">7m miss</th>
+                              <th className="text-right p-2 border">Gult</th>
+                              <th className="text-right p-2 border">Rött</th>
+                              <th className="text-right p-2 border">7m insl</th>
+                              <th className="text-right p-2 border">7m rädd</th>
                               <th className="text-right p-2 border">GK mål</th>
                             </tr>
                           </thead>
@@ -1401,15 +1378,19 @@ export default function SeasonCenter({
                             {gks.map((r) => (
                               <tr
                                 key={r.id || r.name}
-                                onClick={() => setSeasonMatchPlayerFocus({ nr: r.nr, name: r.name, type: "gk" })}
+                                onClick={() => setSeasonMatchPlayerFocus({ id: r.id, nr: r.nr, name: r.name, type: "gk" })}
                                 className="cursor-pointer hover:bg-slate-50"
                               >
                                 <td className="p-2 border">{r.nr}</td>
                                 <td className="p-2 border">{r.name}</td>
                                 <td className="p-2 border text-right">{r.gkSaves}</td>
+                                <td className="p-2 border text-right">{r.saveOpen}</td>
                                 <td className="p-2 border text-right">{r.gkConceded}</td>
-                                <td className="p-2 border text-right">{r.gkPct}%</td>
+                                <td className="p-2 border text-right">{r.goalOpen}</td>
+                                <td className="p-2 border text-right">{r.gkPct}</td>
                                 <td className="p-2 border text-right">{r.suspension}</td>
+                                <td className="p-2 border text-right">{r.yellowCard}</td>
+                                <td className="p-2 border text-right">{r.redCard}</td>
                                 <td className="p-2 border text-right">{r.sevenGoal}</td>
                                 <td className="p-2 border text-right">{r.sevenMiss}</td>
                                 <td className="p-2 border text-right">{r.gkScored}</td>
@@ -1429,13 +1410,16 @@ export default function SeasonCenter({
                           <tr>
                             <th className="text-left p-2 border">#</th>
                             <th className="text-left p-2 border">Spelare</th>
-                            <th className="text-right p-2 border">Mål</th>
+                            <th className="text-right p-2 border">Totalt mål</th>
+                            <th className="text-right p-2 border">Spelmål</th>
                             <th className="text-right p-2 border">Rädd</th>
                             <th className="text-right p-2 border">Utanför</th>
                             <th className="text-right p-2 border">Ribba</th>
                             <th className="text-right p-2 border">7m mål</th>
                             <th className="text-right p-2 border">7m miss</th>
                             <th className="text-right p-2 border">Utvisn</th>
+                            <th className="text-right p-2 border">Gult</th>
+                            <th className="text-right p-2 border">Rött</th>
                             <th className="text-right p-2 border">Avslut</th>
                             <th className="text-right p-2 border">Skott%</th>
                           </tr>
@@ -1444,20 +1428,23 @@ export default function SeasonCenter({
                           {fps.map((r) => (
                             <tr
                               key={r.id || r.name}
-                              onClick={() => setSeasonMatchPlayerFocus({ nr: r.nr, name: r.name, type: "fp" })}
+                              onClick={() => setSeasonMatchPlayerFocus({ id: r.id, nr: r.nr, name: r.name, type: "fp" })}
                               className="cursor-pointer hover:bg-slate-50"
                             >
                               <td className="p-2 border">{r.nr}</td>
                               <td className="p-2 border">{r.name}</td>
                               <td className="p-2 border text-right">{r.totalGoals}</td>
+                              <td className="p-2 border text-right">{r.goals}</td>
                               <td className="p-2 border text-right">{r.saves}</td>
                               <td className="p-2 border text-right">{r.wide}</td>
                               <td className="p-2 border text-right">{r.post}</td>
                               <td className="p-2 border text-right">{r.sevenGoal}</td>
                               <td className="p-2 border text-right">{r.sevenMiss}</td>
                               <td className="p-2 border text-right">{r.suspension}</td>
+                              <td className="p-2 border text-right">{r.yellowCard}</td>
+                              <td className="p-2 border text-right">{r.redCard}</td>
                               <td className="p-2 border text-right">{r.attempts}</td>
-                              <td className="p-2 border text-right">{r.shotPct}%</td>
+                              <td className="p-2 border text-right">{r.shotPct}</td>
                             </tr>
                           ))}
                         </tbody>

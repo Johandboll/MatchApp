@@ -2,6 +2,9 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "1.5.1": [
+    "**Fix:** Säsongsstatistiken använder nu samma beräkningar som matchstatistiken för målvakter, utespelare, totaler och detaljvyer."
+  ],
   "1.4.9.2": [
     "**Nyhet:** Säsongsvyn har fått nya filter så att du enklare kan växla mellan alla matcher, seriematcher, cuper eller en specifik cup.",
     "**Nyhet:** En ny översikt i Säsong lyfter fram bland annat bästa match, starkaste försvar, målfarligaste match och snittmål per match.",

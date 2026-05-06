@@ -1,68 +1,59 @@
 // components/StatsView.jsx
 import React, { useMemo } from "react";
-
-function pct(n, d) {
-  if (!d) return "";
-  const v = (n / d) * 100;
-  return `${Number.isFinite(v) ? v.toFixed(1) : "0.0"}%`;
-}
+import { buildMatchStatRow, playerMatchesRef } from "../lib/appHelpers";
 
 export default function StatsView({ allPlayers, selectedPlayers, stats }) {
   const rows = useMemo(() => {
     const selected = new Set(selectedPlayers);
-    const players = (allPlayers || []).filter(p => selected.has(p.nr));
+    const players = (allPlayers || []).filter((p) =>
+      [...selected].some((ref) => playerMatchesRef(p, ref))
+    );
 
     return players.map((p) => {
-      const s = stats?.[p.nr] || {};
-      const isGK = p.role === "goalkeeper";
-
-      // För Rädd% (MV)
-      const saves = (s.save || 0) + (s.sevenMiss || 0);
-      const concededOpen = (s.goal || 0);
-      const conceded7m   = (s.sevenGoal || 0);
-      const shotsFaced   = saves + concededOpen + conceded7m;
-
-      // --- Skott% (utespelare) ---
-      const savedShot = Number(s.savedShot ?? s.saved ?? s.save ?? s.blockedShot ?? s.blocked ?? 0);
-      const attempts = isGK ? 0 : Number((s.goal||0) + (s.sevenGoal||0) + (s.miss||0) + (s.post||0) + (s.sevenMiss||0) + savedShot);
-      const made     = isGK ? 0 : Number((s.goal||0) + (s.sevenGoal||0));
-      const shotPct  = isGK ? "" : pct(made, attempts);
-      // ---------------------------
+      const row = buildMatchStatRow(p, stats);
+      const isGK = row.isGoalkeeper;
 
       return {
-        nr: p.nr,
+        id: row.id,
+        nr: row.nr,
         nameDisplay: `${p.name}${isGK ? " (MV)" : ""}`,
         isGK,
 
-        goal: isGK ? "" : (s.goal || 0),
-        concededOpen: isGK ? concededOpen : "",
-        save: s.save || 0,
-        miss: s.miss || 0,
-        post: s.post || 0,
-        assist: s.assist || 0,
-        turnover: s.turnover || 0,
+        totalGoals: isGK ? "" : row.goals,
+        goal: isGK ? "" : row.goal,
+        totalConceded: isGK ? row.gkConceded : "",
+        concededOpen: isGK ? row.goal : "",
+        totalSaves: isGK ? row.gkSaves : "",
+        save: row.save,
+        miss: row.miss,
+        post: row.post,
+        assist: row.assist,
+        turnover: row.turnover,
 
-        sevenCon:  isGK ? conceded7m : "",
-        sevenSave: isGK ? (s.sevenMiss || 0) : "",
-        savePct:   isGK ? pct(saves, shotsFaced) : "",
-        shotPct, // ENDAT tillagt fält
+        sevenCon:  isGK ? row.sevenGoal : "",
+        sevenSave: isGK ? row.sevenMiss : "",
+        savePct:   row.savePct,
+        shotPct: row.shotPct,
 
-        sevenGoal: isGK ? "" : (s.sevenGoal || 0),
-        sevenMiss: isGK ? "" : (s.sevenMiss || 0),
+        sevenGoal: isGK ? "" : row.sevenGoal,
+        sevenMiss: isGK ? "" : row.sevenMiss,
 
-        gkScored: isGK ? (s.gkScored || 0) : "",
+        gkScored: isGK ? row.gkScored : "",
 
-        twoMin: s.twoMin || 0,
-        yellowCard: s.yellowCard || 0,
-        redCard: s.redCard || 0,
+        twoMin: row.twoMin,
+        yellowCard: row.yellowCard,
+        redCard: row.redCard,
       };
     });
   }, [allPlayers, selectedPlayers, stats]);
 
   const columns = [
-    { key: "goal",         label: "Mål" },
-    { key: "concededOpen", label: "Insl. mål" },
-    { key: "save",         label: "Räddning" },
+    { key: "totalGoals",   label: "Totalt mål" },
+    { key: "goal",         label: "Spelmål" },
+    { key: "totalConceded", label: "Totalt insl" },
+    { key: "concededOpen", label: "Insl. spel" },
+    { key: "totalSaves",   label: "Totalt rädd" },
+    { key: "save",         label: "Rädd spel" },
     { key: "miss",         label: "Utanför" },
     { key: "post",         label: "Ribba" },
     { key: "assist",       label: "Assist" },
@@ -82,7 +73,7 @@ export default function StatsView({ allPlayers, selectedPlayers, stats }) {
   return (
     <div className="border rounded-2xl shadow-sm overflow-hidden bg-white">
       <div className="overflow-x-auto">
-        <table className="min-w-[1250px] w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
+        <table className="min-w-[1400px] w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
           <thead>
             <tr className="bg-gray-100">
               <th className="px-3 py-1.5 text-left border-b">Nr</th>
@@ -101,7 +92,7 @@ export default function StatsView({ allPlayers, selectedPlayers, stats }) {
             {rows.map((r) => {
               const rowBg = r.isGK ? "bg-yellow-50" : "bg-blue-50";
               return (
-                <tr key={r.nr} className={rowBg}>
+                <tr key={r.id ?? r.nr} className={rowBg}>
                   <td className="px-3 py-1.5 border-b font-semibold text-left">{r.nr}</td>
                   <td className="px-3 py-1.5 border-b text-left whitespace-nowrap overflow-hidden text-ellipsis w-[260px]">
                     {r.nameDisplay}
