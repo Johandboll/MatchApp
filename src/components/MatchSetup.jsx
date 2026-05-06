@@ -2,10 +2,9 @@ import React, { useMemo, useRef } from "react";
 import Tooltip from "./Tooltip";
 
 export default function MatchSetup({
+  teamName,
   matchInfo,
   onMatchInfoChange,
-  onOpenSeason,
-  onOpenTeamAdmin,
   playersForUI,
   selectedPlayers,
   onTogglePlayer,
@@ -18,7 +17,6 @@ export default function MatchSetup({
   setCupPhase,
   onStartMatch,
   canStartMatch,
-  onChangeTeam,
   appVersion,
   changelogTooltip
 }) {
@@ -55,29 +53,19 @@ export default function MatchSetup({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-end justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">MatchApp</div>
           <h1 className="mt-1 text-2xl font-extrabold text-slate-900">Ny match</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onOpenSeason}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-          >
-            Säsong
-          </button>
-          {onOpenTeamAdmin && (
-            <button
-              type="button"
-              onClick={onOpenTeamAdmin}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              Lagadmin
-            </button>
-          )}
-        </div>
+        {teamName && (
+          <div className="min-w-0 text-right">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Aktivt lag
+            </div>
+            <div className="truncate text-2xl font-extrabold text-slate-900">{teamName}</div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -90,7 +78,7 @@ export default function MatchSetup({
                 <input
                   type="text"
                   placeholder="Välj datum"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base pointer-events-none select-none"
+                  className="h-[46px] w-full rounded-xl border border-slate-300 px-3 text-base pointer-events-none select-none"
                   value={matchInfo.date}
                   readOnly
                 />
@@ -109,7 +97,7 @@ export default function MatchSetup({
                 <input
                   type="text"
                   placeholder="Välj datum"
-                  className="w-full cursor-pointer rounded-xl border border-slate-300 px-3 py-2.5 text-base"
+                  className="h-[46px] w-full cursor-pointer rounded-xl border border-slate-300 px-3 text-base"
                   value={matchInfo.date}
                   readOnly
                   onClick={openDatePicker}
@@ -134,7 +122,7 @@ export default function MatchSetup({
               type="text"
               name="opponent"
               placeholder="Motståndare"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base"
+              className="h-[46px] w-full rounded-xl border border-slate-300 px-3 text-base"
               onChange={onMatchInfoChange}
               value={matchInfo.opponent}
             />
@@ -144,7 +132,7 @@ export default function MatchSetup({
             <span className="mb-1 block text-sm font-semibold text-slate-700">Plats</span>
             <select
               name="location"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base"
+              className="h-[46px] w-full rounded-xl border border-slate-300 bg-white px-3 text-base"
               onChange={onMatchInfoChange}
               value={matchInfo.location}
             >
@@ -252,9 +240,6 @@ export default function MatchSetup({
         </button>
 
         <div className="flex items-center gap-3 text-xs text-slate-500">
-          <button onClick={onChangeTeam} className="font-semibold underline hover:text-slate-700">
-            Byt lag
-          </button>
           <Tooltip content={changelogTooltip}>
             <span>Version: {appVersion}</span>
           </Tooltip>

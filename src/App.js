@@ -1106,43 +1106,66 @@ export default function App() {
   return (
     <div className="p-4 max-w-7xl mx-auto relative">
       {isSupabaseConfigured && auth.user && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 text-slate-700">
-            <span>
-              Inloggad som <span className="font-semibold text-slate-900">{auth.user.email}</span>
-            </span>
-            <span
-              className={`rounded-full px-2 py-1 text-xs font-bold ${
-                pendingMatchesForSelectedTeam.length > 0
-                  ? "bg-amber-100 text-amber-800"
-                  : onlineTeams.usingCache
+        <div className="mb-3 flex justify-end">
+          <div className="w-full rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm sm:w-auto">
+            <div className="mb-1 flex min-w-0 items-center justify-end gap-2 text-xs text-slate-500">
+              <span className="min-w-0 truncate">{auth.user.email}</span>
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  pendingMatchesForSelectedTeam.length > 0
                     ? "bg-amber-100 text-amber-800"
-                  : onlineMatches.online
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {onlineStatus}
-            </span>
+                    : onlineTeams.usingCache
+                      ? "bg-amber-100 text-amber-800"
+                    : onlineMatches.online
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {onlineStatus}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setSeasonOpen(true)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Säsong
+              </button>
+              {selectedTeam?.onlineId && (
+                <button
+                  type="button"
+                  onClick={() => setTeamAdminOpen(true)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Lagadmin
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleChangeTeam}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Byt lag
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              >
+                Logga ut
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Logga ut
-          </button>
         </div>
       )}
 
       {(step === 1 || (step === 2 && selectedPlayers.length === 0)) && (
         <MatchSetup
+          teamName={selectedTeam?.name}
           matchInfo={matchInfo}
           onMatchInfoChange={handleMatchInfoChange}
-          onOpenSeason={() => setSeasonOpen(true)}
-          onOpenTeamAdmin={
-            selectedTeam?.onlineId ? () => setTeamAdminOpen(true) : null
-          }
           playersForUI={playersForUI}
           selectedPlayers={selectedPlayers}
           onTogglePlayer={togglePlayer}
@@ -1155,7 +1178,6 @@ export default function App() {
           setCupPhase={setCupPhase}
           onStartMatch={startMatch}
           canStartMatch={canStartMatch}
-          onChangeTeam={handleChangeTeam}
           appVersion={APP_VERSION}
           changelogTooltip={CHANGELOG_TOOLTIP}
         />
