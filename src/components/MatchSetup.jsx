@@ -54,133 +54,150 @@ export default function MatchSetup({
   const getPlayerShirtNumber = (player) => player.shirtNumber ?? player.nr;
 
   return (
-    <div>
-      <h1 className="text-xl font-bold mb-4">Matchinformation</h1>
-      <div className="mb-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onOpenSeason}
-          className="border px-3 py-2 rounded-xl bg-white/80"
-        >
-          📊 Säsong
-        </button>
-        {onOpenTeamAdmin && (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">MatchApp</div>
+          <h1 className="mt-1 text-2xl font-extrabold text-slate-900">Ny match</h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onOpenTeamAdmin}
-            className="border px-3 py-2 rounded-xl bg-white/80"
+            onClick={onOpenSeason}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
           >
-            Lagadmin
+            Säsong
           </button>
-        )}
+          {onOpenTeamAdmin && (
+            <button
+              type="button"
+              onClick={onOpenTeamAdmin}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              Lagadmin
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {isMobile ? (
-          <div className="relative w-full">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 text-base font-bold text-slate-900">Matchinformation</div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-slate-700">Datum</span>
+            {isMobile ? (
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder="Välj datum"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base pointer-events-none select-none"
+                  value={matchInfo.date}
+                  readOnly
+                />
+                <input
+                  id="match-date"
+                  type="date"
+                  name="date"
+                  className="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 bg-transparent p-0 m-0 opacity-[0.01] text-transparent caret-transparent"
+                  onChange={onMatchInfoChange}
+                  value={matchInfo.date}
+                  aria-label="Datum"
+                />
+              </div>
+            ) : (
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder="Välj datum"
+                  className="w-full cursor-pointer rounded-xl border border-slate-300 px-3 py-2.5 text-base"
+                  value={matchInfo.date}
+                  readOnly
+                  onClick={openDatePicker}
+                />
+                <input
+                  ref={dateInputRef}
+                  id="match-date"
+                  type="date"
+                  name="date"
+                  className="absolute inset-0 h-0 w-0 opacity-0 pointer-events-none"
+                  onChange={onMatchInfoChange}
+                  value={matchInfo.date}
+                  aria-label="Datum"
+                />
+              </div>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-slate-700">Motståndare</span>
             <input
               type="text"
-              placeholder="Datum"
-              className="border p-2 rounded w-full text-base pointer-events-none select-none"
-              value={matchInfo.date}
-              readOnly
-            />
-            <input
-              id="match-date"
-              type="date"
-              name="date"
-              className="absolute inset-0 w-full h-full z-10 opacity-[0.01] cursor-pointer border-0 p-0 m-0 bg-transparent text-transparent caret-transparent appearance-none"
+              name="opponent"
+              placeholder="Motståndare"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base"
               onChange={onMatchInfoChange}
-              value={matchInfo.date}
-              aria-label="Datum"
+              value={matchInfo.opponent}
             />
-          </div>
-        ) : (
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Datum"
-              className="border p-2 rounded w-full text-base cursor-pointer"
-              value={matchInfo.date}
-              readOnly
-              onClick={openDatePicker}
-            />
-            <input
-              ref={dateInputRef}
-              id="match-date"
-              type="date"
-              name="date"
-              className="absolute inset-0 w-0 h-0 opacity-0 pointer-events-none"
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-slate-700">Plats</span>
+            <select
+              name="location"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base"
               onChange={onMatchInfoChange}
-              value={matchInfo.date}
-              aria-label="Datum"
-            />
-          </div>
-        )}
-        <input
-          type="text"
-          name="opponent"
-          placeholder="Motståndare"
-          className="border p-2 rounded w-full text-base"
-          onChange={onMatchInfoChange}
-          value={matchInfo.opponent}
-        />
-        <select
-          name="location"
-          className="border p-2 rounded w-full text-base"
-          onChange={onMatchInfoChange}
-          value={matchInfo.location}
-        >
-          <option value="">Välj plats</option>
-          <option value="Hemma">Hemma</option>
-          <option value="Borta">Borta</option>
-        </select>
+              value={matchInfo.location}
+            >
+              <option value="">Välj plats</option>
+              <option value="Hemma">Hemma</option>
+              <option value="Borta">Borta</option>
+            </select>
+          </label>
+        </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-2">Välj spelare som är med i matchen</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-        {playersForUI.map((player) => {
-          const playerId = getPlayerId(player);
-          const shirtNumber = getPlayerShirtNumber(player);
-          const selected = selectedPlayers.includes(playerId);
-          const isGoalkeeper = player.role === "goalkeeper";
-          const baseClass = "p-2 border rounded-xl text-left transition-colors";
-          const content = `#${shirtNumber} ${player.name}${isGoalkeeper ? " (MV)" : ""}`;
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-base font-bold text-slate-900">Spelare</div>
+            <div className="text-sm text-slate-500">{selectedPlayers.length} valda</div>
+          </div>
+        </div>
 
-          if (isGoalkeeper) {
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {playersForUI.map((player) => {
+            const playerId = getPlayerId(player);
+            const shirtNumber = getPlayerShirtNumber(player);
+            const selected = selectedPlayers.includes(playerId);
+            const isGoalkeeper = player.role === "goalkeeper";
+            const baseClass =
+              "min-h-[56px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors";
+
             return (
               <button
                 key={playerId}
                 className={`${baseClass} ${
                   selected
-                    ? "bg-yellow-300 border-yellow-700 text-black"
-                    : "bg-yellow-50 hover:bg-yellow-100 border-yellow-300 text-black"
+                    ? isGoalkeeper
+                      ? "border-amber-600 bg-amber-300 text-slate-950"
+                      : "border-sky-700 bg-sky-600 text-white"
+                    : isGoalkeeper
+                      ? "border-amber-300 bg-amber-50 text-slate-900 hover:bg-amber-100"
+                      : "border-sky-200 bg-sky-50 text-slate-900 hover:bg-sky-100"
                 }`}
                 onClick={() => onTogglePlayer(playerId)}
               >
-                {content}
+                <span className="block">#{shirtNumber}</span>
+                <span className="block truncate">{player.name}</span>
+                {isGoalkeeper && <span className="block text-xs font-bold opacity-70">Målvakt</span>}
               </button>
             );
-          }
-
-          return (
-            <button
-              key={playerId}
-              className={`${baseClass} ${
-                selected
-                  ? "bg-blue-500 border-blue-700 text-white"
-                  : "bg-blue-50 hover:bg-blue-100 border-blue-300 text-black"
-              }`}
-              onClick={() => onTogglePlayer(playerId)}
-            >
-              {content}
-            </button>
-          );
-        })}
+          })}
+        </div>
       </div>
 
-      <div className="mb-6 p-3 border rounded-xl bg-white/60">
-        <label className="flex items-center gap-2">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <label className="flex items-center gap-3">
           <input
             type="checkbox"
             checked={cupPanelOpen}
@@ -190,25 +207,26 @@ export default function MatchSetup({
               setCupEnabled(checked);
               if (!checked) setCupPhase("");
             }}
+            className="h-5 w-5"
           />
-          <span className="font-medium">Ange cup/turnering</span>
+          <span className="font-semibold text-slate-800">Cup/turnering</span>
         </label>
 
         {cupPanelOpen && (
-          <div className="mt-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             <input
               type="text"
               placeholder="Cup/turneringens namn (valfritt)"
-              className="border p-2 rounded w-full"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base"
               value={cupName}
               onChange={(e) => setCupName(e.target.value)}
             />
-            <div className="mt-2">
-              <label className="block text-sm mb-1">Cupfas</label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Cupfas</span>
               <select
                 value={cupPhase}
                 onChange={(e) => setCupPhase(e.target.value)}
-                className="border p-2 rounded w-full"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base"
               >
                 <option value="">(ingen)</option>
                 <option value="Grupp">Grupp</option>
@@ -217,31 +235,30 @@ export default function MatchSetup({
                 <option value="Semi">Semi</option>
                 <option value="Final">Final</option>
               </select>
-            </div>
+            </label>
           </div>
         )}
       </div>
 
-      <button
-        onClick={onStartMatch}
-        disabled={!canStartMatch}
-        className={`mt-2 px-4 py-2 rounded-xl text-white ${
-          canStartMatch ? "bg-green-600" : "bg-gray-400 cursor-not-allowed"
-        }`}
-      >
-        Starta match
-      </button>
-
-      <div className="mt-2 text-xs text-gray-500">
-        <button onClick={onChangeTeam} className="underline hover:text-gray-700">
-          Byt lag
+      <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          onClick={onStartMatch}
+          disabled={!canStartMatch}
+          className={`rounded-xl px-5 py-3 text-base font-extrabold text-white shadow-sm ${
+            canStartMatch ? "bg-emerald-600 hover:bg-emerald-700" : "bg-slate-400 cursor-not-allowed"
+          }`}
+        >
+          Starta match
         </button>
-      </div>
 
-      <div className="mt-3 text-xs text-gray-500">
-        <Tooltip content={changelogTooltip}>
-          <span>Version: {appVersion}</span>
-        </Tooltip>
+        <div className="flex items-center gap-3 text-xs text-slate-500">
+          <button onClick={onChangeTeam} className="font-semibold underline hover:text-slate-700">
+            Byt lag
+          </button>
+          <Tooltip content={changelogTooltip}>
+            <span>Version: {appVersion}</span>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );

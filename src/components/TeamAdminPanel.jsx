@@ -210,7 +210,7 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/40 p-3 sm:p-6">
-      <div className="mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lagadmin</div>
@@ -226,18 +226,18 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
         </div>
 
         <div className="border-b border-slate-200 px-4 pt-3">
-          <div className="inline-flex overflow-hidden rounded-xl border border-slate-200">
+          <div className="grid max-w-md grid-cols-2 overflow-hidden rounded-xl border border-slate-200">
             <button
               type="button"
               onClick={() => setTab("players")}
-              className={`px-4 py-2 text-sm font-bold ${tab === "players" ? "bg-sky-600 text-white" : "bg-white text-slate-700"}`}
+              className={`px-4 py-2 text-sm font-bold ${tab === "players" ? "bg-sky-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
             >
               Spelare
             </button>
             <button
               type="button"
               onClick={() => setTab("members")}
-              className={`px-4 py-2 text-sm font-bold ${tab === "members" ? "bg-sky-600 text-white" : "bg-white text-slate-700"}`}
+              className={`px-4 py-2 text-sm font-bold ${tab === "members" ? "bg-sky-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
             >
               Medlemmar
             </button>
@@ -248,7 +248,9 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
           {tab === "members" && (
           <>
           <section className="mb-5">
-            <h3 className="mb-2 text-base font-bold text-slate-900">Medlemmar</h3>
+            <div className="mb-3">
+              <h3 className="text-lg font-extrabold text-slate-900">Medlemmar</h3>
+            </div>
 
             {error && (
               <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -346,67 +348,11 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
           {tab === "players" && (
             <>
               <section className="mb-5">
-                <h3 className="mb-2 text-base font-bold text-slate-900">Spelare</h3>
-
-                {playerError && (
-                  <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {playerError}
-                  </div>
-                )}
-
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  {playersLoading ? (
-                    <div className="px-3 py-4 text-sm text-slate-500">Hämtar spelare...</div>
-                  ) : players.length === 0 ? (
-                    <div className="px-3 py-4 text-sm text-slate-500">Inga spelare tillagda ännu.</div>
-                  ) : (
-                    players.map((player) => (
-                      <div
-                        key={player.id}
-                        className={`flex flex-col gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0 sm:flex-row sm:items-center ${player.active ? "bg-white" : "bg-slate-50"}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className={`text-sm font-semibold ${player.active ? "text-slate-900" : "text-slate-500"}`}>
-                            #{Number(player.shirt_number)} {player.name}
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                              {player.role === "goalkeeper" ? "Målvakt" : "Utespelare"}
-                            </span>
-                            {!player.active && (
-                              <span className="text-xs font-medium text-slate-500">Inaktiv</span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => editPlayer(player)}
-                            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                          >
-                            Ändra
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setPlayerActive(player, !player.active)}
-                            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                          >
-                            {player.active ? "Inaktivera" : "Aktivera"}
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="mb-3">
+                  <h3 className="text-lg font-extrabold text-slate-900">
+                    {playerForm.id ? "Ändra spelare" : "Lägg till spelare"}
+                  </h3>
                 </div>
-              </section>
-
-              <section>
-                <h3 className="mb-2 text-base font-bold text-slate-900">
-                  {playerForm.id ? "Ändra spelare" : "Lägg till spelare"}
-                </h3>
                 <form onSubmit={savePlayer} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[120px_1fr_170px_auto]">
                   <input
                     type="number"
@@ -459,6 +405,72 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
                     )}
                   </div>
                 </form>
+              </section>
+
+              <section className="mb-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-lg font-extrabold text-slate-900">Trupp</h3>
+                  <div className="text-sm font-semibold text-slate-500">
+                    {players.filter((player) => player.active).length} aktiva
+                  </div>
+                </div>
+
+                {playerError && (
+                  <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {playerError}
+                  </div>
+                )}
+
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  {playersLoading ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">Hämtar spelare...</div>
+                  ) : players.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">Inga spelare tillagda ännu.</div>
+                  ) : (
+                    players.map((player) => (
+                      <div
+                        key={player.id}
+                        className={`grid grid-cols-1 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center ${player.active ? "bg-white" : "bg-slate-50"}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className={`flex items-center gap-2 text-sm font-semibold ${player.active ? "text-slate-900" : "text-slate-500"}`}>
+                            <span className="inline-flex min-w-10 justify-center rounded-lg bg-slate-100 px-2 py-1 text-xs font-extrabold text-slate-700">
+                              #{Number(player.shirt_number)}
+                            </span>
+                            <span className="truncate">{player.name}</span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                              {player.role === "goalkeeper" ? "Målvakt" : "Utespelare"}
+                            </span>
+                            {!player.active && (
+                              <span className="text-xs font-medium text-slate-500">Inaktiv</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => editPlayer(player)}
+                            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                          >
+                            Ändra
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setPlayerActive(player, !player.active)}
+                            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                          >
+                            {player.active ? "Inaktivera" : "Aktivera"}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </section>
             </>
           )}
