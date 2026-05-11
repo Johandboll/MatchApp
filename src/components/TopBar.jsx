@@ -3,7 +3,7 @@ import React from "react";
 export default function TopBar({
   currentHalf, setCurrentHalf,
   viewMode, setViewMode,
-  undoLast, downloadExcel, onReset,
+  undoLast, onReset,
   matchInfo, liveHome, liveAway,
   cupLabel
 }) {
@@ -60,8 +60,7 @@ export default function TopBar({
 
         <div className="flex gap-2 flex-wrap ml-auto">
           <button onClick={undoLast} className="bg-red-500 text-white px-4 py-2 rounded-xl">Ångra senaste</button>
-          <button onClick={onReset} className="bg-yellow-500 text-white px-4 py-2 rounded-xl">Starta ny match</button>
-          <button onClick={downloadExcel} className="bg-blue-600 text-white px-4 py-2 rounded-xl">Ladda ner som Excel</button>
+          <button onClick={onReset} className="bg-yellow-500 text-white px-4 py-2 rounded-xl">Avsluta match</button>
         </div>
       </div>
 

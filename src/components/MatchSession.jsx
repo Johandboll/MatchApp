@@ -10,7 +10,6 @@ export default function MatchSession({
   viewMode,
   setViewMode,
   undoLast,
-  onDownloadExcel,
   onReset,
   matchInfo,
   liveHome,
@@ -22,10 +21,10 @@ export default function MatchSession({
   selectedPlayers,
   stats,
   increment,
-  playersForUI
+  playersForUI,
+  onConfirm
 }) {
   const [logOpen, setLogOpen] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const getPlayerId = useCallback((player) => player?.id ?? player?.nr, []);
 
@@ -46,8 +45,7 @@ export default function MatchSession({
         viewMode={viewMode}
         setViewMode={setViewMode}
         undoLast={undoLast}
-        downloadExcel={onDownloadExcel}
-        onReset={() => setShowResetConfirm(true)}
+        onReset={onReset}
         matchInfo={matchInfo}
         liveHome={liveHome}
         liveAway={liveAway}
@@ -122,11 +120,16 @@ export default function MatchSession({
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm("Radera denna händelse?")) {
-                            onDeleteHistoryItem(item.id);
-                          }
-                        }}
+                        onClick={() =>
+                          onConfirm?.({
+                            title: "Radera händelse?",
+                            message: "Händelsen tas bort från matchloggen och statistiken räknas om.",
+                            confirmText: "Radera",
+                            cancelText: "Avbryt",
+                            variant: "danger",
+                            onConfirm: () => onDeleteHistoryItem(item.id)
+                          })
+                        }
                         className="shrink-0 px-2 py-2 rounded-lg bg-red-50 hover:bg-red-100"
                         title="Radera"
                         aria-label="Radera händelse"
@@ -140,31 +143,6 @@ export default function MatchSession({
           )}
         </div>
       </div>
-
-      {showResetConfirm && (
-        <div className="bg-white border p-4 rounded-xl shadow-md mb-4">
-          <p className="mb-2 font-semibold">
-            Är du säker på att du vill starta en ny match? All statistik kommer raderas.
-          </p>
-          <div className="flex gap-2">
-            <button
-              className="bg-red-600 text-white px-3 py-1 rounded"
-              onClick={() => {
-                onReset();
-                setShowResetConfirm(false);
-              }}
-            >
-              Ja, starta ny match
-            </button>
-            <button
-              className="bg-gray-400 text-white px-3 py-1 rounded"
-              onClick={() => setShowResetConfirm(false)}
-            >
-              Nej, behåll datan
-            </button>
-          </div>
-        </div>
-      )}
 
       {viewMode === "match" ? (
         <MatchView

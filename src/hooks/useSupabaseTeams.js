@@ -21,7 +21,7 @@ const writeTeamsCache = (userId, teams) => {
   } catch {}
 };
 
-const mergeWithLocalRoster = (team) => {
+const mergeWithLocalRoster = (team, membershipRole) => {
   const localTeam = teamsData.find((item) => item.id === team.slug);
   const onlinePlayers = Array.isArray(team.players)
     ? team.players
@@ -40,6 +40,7 @@ const mergeWithLocalRoster = (team) => {
     id: team.slug || team.id,
     onlineId: team.id,
     name: team.name,
+    membershipRole,
     players: onlinePlayers.length > 0 ? onlinePlayers : localTeam?.players || []
   };
 };
@@ -100,9 +101,8 @@ export function useSupabaseTeams(user) {
       }
 
       const nextTeams = (data || [])
-        .map((row) => row.teams)
-        .filter(Boolean)
-        .map(mergeWithLocalRoster);
+        .filter((row) => row.teams)
+        .map((row) => mergeWithLocalRoster(row.teams, row.role));
 
       setTeams(nextTeams);
       writeTeamsCache(user.id, nextTeams);

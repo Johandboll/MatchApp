@@ -38,7 +38,10 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
     >
       <div ref={modalRef} style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={styles.h2}>{title}</h2>
+          <div>
+            <h2 style={styles.h2}>{title}</h2>
+            {cleanItems.length > 3 && <div style={styles.scrollHint}>Scrolla för att läsa allt</div>}
+          </div>
 
           {/* X-knapp */}
           <button
@@ -63,12 +66,12 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
           ) : (
             <p style={styles.p}>Inga nyheter för den här versionen.</p>
           )}
-        </div>
 
-        <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={styles.button}>
-            Stäng
-          </button>
+          <div style={styles.bodyFooter}>
+            <button type="button" onClick={onClose} style={styles.button}>
+              Stäng
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -77,7 +80,7 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
 
 function renderHighlightedPrefix(text) {
   const value = String(text || "").trim();
-  const match = value.match(/^\*\*(Nyhet|Fix):\*\*\s*(.+)$/);
+  const match = value.match(/^\*\*([^*]+):\*\*\s*(.+)$/);
   if (!match) return value;
 
   return (
@@ -100,11 +103,14 @@ const styles = {
   },
   modal: {
     width: "min(560px, 100%)",
+    maxHeight: "min(760px, calc(100vh - 32px))",
     background: "#fff",
     borderRadius: 12,
     boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
     overflow: "hidden",
     position: "relative",
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
     padding: "16px 18px",
@@ -118,6 +124,12 @@ const styles = {
     fontSize: 18,
     lineHeight: 1.2,
   },
+  scrollHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: 600,
+  },
   closeButton: {
     background: "transparent",
     border: "none",
@@ -127,6 +139,8 @@ const styles = {
   },
   body: {
     padding: "14px 18px",
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
   },
   ul: {
     margin: 0,
@@ -138,8 +152,9 @@ const styles = {
   p: {
     margin: 0,
   },
-  footer: {
-    padding: "14px 18px",
+  bodyFooter: {
+    marginTop: 18,
+    paddingTop: 14,
     borderTop: "1px solid #eee",
     display: "flex",
     justifyContent: "flex-end",

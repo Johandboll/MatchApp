@@ -31,7 +31,7 @@ export function pct(numerator, denominator) {
   return `${Number.isFinite(value) ? value.toFixed(1) : "0.0"}%`;
 }
 
-export const getPlayerId = (player) => player?.id ?? player?.nr;
+export const getPlayerId = (player) => player?.playerId ?? player?.id ?? player?.nr;
 
 export const getPlayerShirtNumber = (player) => player?.shirtNumber ?? player?.nr;
 

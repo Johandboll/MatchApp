@@ -7,11 +7,14 @@ const roleLabel = {
   member: "Medlem"
 };
 
-export default function TeamAdminPanel({ open, team, currentUser, onClose, onToast, onPlayersChanged }) {
+export default function TeamAdminPanel({ open, team, currentUser, onClose, onToast, onPlayersChanged, onConfirm }) {
   const [tab, setTab] = useState("players");
   const [members, setMembers] = useState([]);
   const [players, setPlayers] = useState([]);
   const [email, setEmail] = useState("");
+  const [memberCandidates, setMemberCandidates] = useState([]);
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [role, setRole] = useState("member");
   const [playerForm, setPlayerForm] = useState({
     id: null,
@@ -76,6 +79,43 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
     loadPlayers();
   }, [loadMembers, loadPlayers, open]);
 
+  useEffect(() => {
+    if (!canLoad || tab !== "members") return;
+
+    const searchText = email.trim();
+    if (selectedCandidate?.email === searchText || searchText.length < 2) {
+      setMemberCandidates([]);
+      setMemberSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setMemberSearchLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      const { data, error: queryError } = await supabase.rpc("search_team_member_candidates", {
+        target_team_id: team.onlineId,
+        search_text: searchText
+      });
+
+      if (cancelled) return;
+
+      if (queryError) {
+        setError(queryError.message);
+        setMemberCandidates([]);
+      } else {
+        setMemberCandidates(data || []);
+      }
+
+      setMemberSearchLoading(false);
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [canLoad, email, selectedCandidate, tab, team]);
+
   const addMember = async (event) => {
     event.preventDefault();
     if (!email.trim()) return;
@@ -97,9 +137,24 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
 
     setMembers(data || []);
     setEmail("");
+    setMemberCandidates([]);
+    setSelectedCandidate(null);
     setRole("member");
     setBusy(false);
     onToast?.("Medlem tillagd");
+  };
+
+  const updateMemberSearch = (value) => {
+    setEmail(value);
+    setSelectedCandidate(null);
+  };
+
+  const chooseCandidate = (candidate) => {
+    if (candidate.existing_role) return;
+
+    setEmail(candidate.email);
+    setSelectedCandidate(candidate);
+    setMemberCandidates([]);
   };
 
   const changeRole = async (member, nextRole) => {
@@ -124,8 +179,17 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
   };
 
   const removeMember = async (member) => {
-    if (!window.confirm(`Ta bort ${member.email} från ${team.name}?`)) return;
+    onConfirm?.({
+      title: "Ta bort medlem?",
+      message: `${member.email} tas bort från ${team.name}.`,
+      confirmText: "Ta bort",
+      cancelText: "Avbryt",
+      variant: "danger",
+      onConfirm: () => removeMemberConfirmed(member)
+    });
+  };
 
+  const removeMemberConfirmed = async (member) => {
     setBusy(true);
     setError("");
 
@@ -267,6 +331,7 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
                 members.map((member) => {
                   const isOwner = member.role === "owner";
                   const isCurrentUser = member.user_id === currentUser?.id;
+                  const displayName = (member.display_name || "").trim();
 
                   return (
                     <div
@@ -275,8 +340,13 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
                     >
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold text-slate-900">
-                          {member.email}
+                          {displayName || member.email}
                         </div>
+                        {displayName && (
+                          <div className="mt-0.5 truncate text-xs text-slate-500">
+                            {member.email}
+                          </div>
+                        )}
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
                             {roleLabel[member.role] || member.role}
@@ -317,14 +387,54 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
           <section>
             <h3 className="mb-2 text-base font-bold text-slate-900">Lägg till person</h3>
             <form onSubmit={addMember} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_150px_auto]">
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="E-postadress"
-                className="rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={email}
+                  onChange={(event) => updateMemberSearch(event.target.value)}
+                  placeholder="Sök namn eller e-postadress"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                  required
+                />
+                {(memberSearchLoading || memberCandidates.length > 0) && (
+                  <div className="absolute left-0 right-0 top-full z-10 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                    {memberSearchLoading ? (
+                      <div className="px-3 py-2 text-sm text-slate-500">Söker...</div>
+                    ) : (
+                      memberCandidates.map((candidate) => {
+                        const name = (candidate.display_name || "").trim();
+                        const alreadyMember = Boolean(candidate.existing_role);
+
+                        return (
+                          <button
+                            key={candidate.user_id}
+                            type="button"
+                            disabled={alreadyMember}
+                            onClick={() => chooseCandidate(candidate)}
+                            className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 text-left last:border-b-0 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-slate-900">
+                                {name || candidate.email}
+                              </span>
+                              {name && (
+                                <span className="block truncate text-xs text-slate-500">
+                                  {candidate.email}
+                                </span>
+                              )}
+                            </span>
+                            {alreadyMember && (
+                              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                Redan medlem
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
               <select
                 value={role}
                 onChange={(event) => setRole(event.target.value)}

@@ -16,7 +16,10 @@ export default function SeasonCenter({
   seasonSummary,
   matches,
   onDeleteMatch,
-  onClearSeason
+  onClearSeason,
+  onExportMatchExcel,
+  onConfirm,
+  canManageSeason = true
 }) {
   const [seasonTab, setSeasonTab] = useState("overview");
   const [seasonSearchPlayers, setSeasonSearchPlayers] = useState("");
@@ -71,6 +74,23 @@ export default function SeasonCenter({
     const home = Number(match?.result?.home ?? 0);
     const away = Number(match?.result?.away ?? 0);
     return isAway ? home : away;
+  };
+
+  const getMatchQuickStats = (match) => {
+    const roster = Array.isArray(match?.playerRoster) ? match.playerRoster : [];
+    const rows = roster.map((player) => buildMatchStatRow(player, match?.stats || {}));
+    const fieldRows = rows.filter((row) => !row.isGoalkeeper);
+    const goalkeeperRows = rows.filter((row) => row.isGoalkeeper);
+
+    return {
+      players: rows.length,
+      goals: fieldRows.reduce((sum, row) => sum + (row.goals || 0), 0),
+      assists: fieldRows.reduce((sum, row) => sum + (row.assist || 0), 0),
+      turnovers: fieldRows.reduce((sum, row) => sum + (row.turnover || 0), 0),
+      attempts: fieldRows.reduce((sum, row) => sum + (row.attempts || 0), 0),
+      saves: goalkeeperRows.reduce((sum, row) => sum + (row.gkSaves || 0), 0),
+      suspensions: rows.reduce((sum, row) => sum + (row.suspension || 0), 0)
+    };
   };
 
   // Clear player search query when search bar closes
@@ -382,18 +402,7 @@ export default function SeasonCenter({
               </div>
             </div>
 
-            <div className="bg-white border rounded-2xl p-4">
-              <div className="text-sm font-semibold mb-2">Snabbguide</div>
-              <ol className="list-decimal ml-5 text-sm text-slate-700 space-y-1">
-                <li>Spela match.</li>
-                <li>
-                  Tryck <span className="font-semibold">Starta ny match</span> och välj{" "}
-                  <span className="font-semibold">Spara matchen</span>.
-                </li>
-                <li>Här ser du totalsiffror, spelare och matcher för säsongen.</li>
-              </ol>
-            </div>
-
+            {canManageSeason ? (
             <div className="bg-white border border-red-100 rounded-2xl p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -415,6 +424,14 @@ export default function SeasonCenter({
                 </button>
               </div>
             </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-bold text-slate-700">Begränsad behörighet</div>
+                <div className="mt-1 text-sm text-slate-500">
+                  Du kan se säsongen, men endast ägare/admin kan ta bort matcher eller rensa säsongen.
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -558,8 +575,13 @@ export default function SeasonCenter({
         {seasonTab === "matches" && (
           <div className="space-y-4">
             <div className="bg-white border rounded-2xl p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="text-sm font-semibold">Matcher</div>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div>
+                  <div className="text-lg font-extrabold text-slate-900">Matcher</div>
+                  <div className="text-sm text-slate-500">
+                    {filteredMatches.length} av {scopedMatches.length} matcher visas
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
@@ -597,12 +619,18 @@ export default function SeasonCenter({
                         disabled={selectedMatchIdsForDelete.length === 0}
                         onClick={() => {
                           const count = selectedMatchIdsForDelete.length;
-                          if (!window.confirm(`Ta bort ${count} match${count === 1 ? "" : "er"} från säsongen?`)) {
-                            return;
-                          }
-                          selectedMatchIdsForDelete.forEach((matchId) => onDeleteMatch(matchId));
-                          setSelectedMatchIdsForDelete([]);
-                          setMatchDeleteMode(false);
+                          onConfirm?.({
+                            title: "Ta bort matcher?",
+                            message: `${count} match${count === 1 ? "" : "er"} tas bort från säsongen.`,
+                            confirmText: "Ta bort",
+                            cancelText: "Avbryt",
+                            variant: "danger",
+                            onConfirm: () => {
+                              selectedMatchIdsForDelete.forEach((matchId) => onDeleteMatch(matchId));
+                              setSelectedMatchIdsForDelete([]);
+                              setMatchDeleteMode(false);
+                            }
+                          });
                         }}
                         className={`px-3 py-2 rounded-xl text-sm font-semibold ${
                           selectedMatchIdsForDelete.length > 0
@@ -613,7 +641,7 @@ export default function SeasonCenter({
                         Ta bort valda ({selectedMatchIdsForDelete.length})
                       </button>
                     </>
-                  ) : (
+                  ) : canManageSeason ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -624,6 +652,10 @@ export default function SeasonCenter({
                     >
                       Ta bort
                     </button>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500">
+                      Endast ägare/admin kan ta bort
+                    </div>
                   )}
                 </div>
               </div>
@@ -643,58 +675,118 @@ export default function SeasonCenter({
                   {filteredMatches.map((match) => (
                     (() => {
                       const selectedForDelete = selectedMatchIdsForDelete.includes(match.id);
+                      const ourGoals = getOurGoals(match);
+                      const oppGoals = getOppGoals(match);
+                      const homeGoals = Number(match.result?.home ?? 0);
+                      const awayGoals = Number(match.result?.away ?? 0);
+                      const diff = ourGoals - oppGoals;
+                      const outcome =
+                        diff > 0 ? "Vinst" : diff < 0 ? "Förlust" : "Oavgjort";
+                      const quickStats = getMatchQuickStats(match);
+                      const shotPctValue = quickStats.attempts
+                        ? `${Math.round((quickStats.goals / quickStats.attempts) * 100)}%`
+                        : "-";
                       return (
                     <div
                       key={match.id}
-                      className={`border rounded-2xl p-3 flex items-center justify-between gap-3 bg-white ${
-                        selectedForDelete ? "border-red-300 bg-red-50" : ""
+                      className={`border rounded-2xl p-3 bg-white transition-colors ${
+                        selectedForDelete ? "border-red-300 bg-red-50" : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      {matchDeleteMode && (
-                        <input
-                          type="checkbox"
-                          checked={selectedForDelete}
-                          onChange={(event) => {
-                            const checked = event.target.checked;
-                            setSelectedMatchIdsForDelete((prev) =>
-                              checked
-                                ? [...prev, match.id]
-                                : prev.filter((matchId) => matchId !== match.id)
-                            );
-                          }}
-                          className="h-5 w-5 shrink-0"
-                          aria-label="Välj match för borttagning"
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-xs text-slate-500">
-                          {match.matchInfo?.date || "-"} • {match.matchInfo?.location || "-"}
-                        </div>
-                        <div className="font-semibold truncate">
-                          {match.matchInfo?.opponent || "Okänd motståndare"}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-0.5 truncate">
-                          {match.matchType === "cup"
-                            ? `🏆 ${match.cupName || "Cup"}${match.cupPhase ? ` • ${match.cupPhase}` : ""}`
-                            : "Serie"}
-                        </div>
-                        <div className="text-sm">
-                          Resultat: {match.result?.home ?? 0} – {match.result?.away ?? 0}
-                        </div>
-                      </div>
+                      <div className="flex items-start gap-3">
+                        {matchDeleteMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedForDelete}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setSelectedMatchIdsForDelete((prev) =>
+                                checked
+                                  ? [...prev, match.id]
+                                  : prev.filter((matchId) => matchId !== match.id)
+                              );
+                            }}
+                            className="mt-1 h-5 w-5 shrink-0"
+                            aria-label="Välj match för borttagning"
+                          />
+                        )}
 
-                      <div className="shrink-0 flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={matchDeleteMode}
-                          onClick={() => {
-                            setSeasonMatchPlayerFocus(null);
-                            setSeasonMatchDetail(match);
-                          }}
-                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Visa
-                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+                            <span>{match.matchInfo?.date || "-"}</span>
+                            <span>•</span>
+                            <span>{match.matchInfo?.location || "-"}</span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 ${
+                                match.matchType === "cup"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {match.matchType === "cup"
+                                ? `${match.cupName || "Cup"}${match.cupPhase ? ` • ${match.cupPhase}` : ""}`
+                                : "Serie"}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                            <div className="min-w-0">
+                              <div className="truncate text-lg font-extrabold text-slate-900">
+                                {match.matchInfo?.opponent || "Okänd motståndare"}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-600">
+                                <span>{quickStats.players} spelare</span>
+                                <span>•</span>
+                                <span>{quickStats.saves} räddningar</span>
+                                <span>•</span>
+                                <span>{quickStats.assists} assist</span>
+                                <span>•</span>
+                                <span>{quickStats.turnovers} tekniska fel</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 lg:justify-end">
+                              <div className="text-right">
+                                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                                  {outcome}
+                                </div>
+                                <div className="text-3xl font-extrabold text-slate-900">
+                                  {homeGoals}–{awayGoals}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={matchDeleteMode}
+                                onClick={() => {
+                                  setSeasonMatchPlayerFocus(null);
+                                  setSeasonMatchDetail(match);
+                                }}
+                                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Visa
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Mål</div>
+                              <div className="text-lg font-extrabold text-slate-900">{quickStats.goals}</div>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Avslut</div>
+                              <div className="text-lg font-extrabold text-slate-900">{quickStats.attempts}</div>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Skott%</div>
+                              <div className="text-lg font-extrabold text-slate-900">{shotPctValue}</div>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">2 min</div>
+                              <div className="text-lg font-extrabold text-slate-900">{quickStats.suspensions}</div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                       );
@@ -734,7 +826,7 @@ export default function SeasonCenter({
             {(() => {
               const normKey = (v) => String(v ?? "").toLowerCase().trim();
 
-              const playerId = String(seasonPlayerDetail?.id ?? "").trim();
+              const playerId = String(seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id ?? "").trim();
               const playerNr = String(seasonPlayerDetail?.nr ?? "").trim();
               const playerName = String(seasonPlayerDetail?.name ?? "").trim();
               const isGk = seasonPlayerDetail?.type === "gk";
@@ -742,10 +834,11 @@ export default function SeasonCenter({
               const getPlayerFromMatch = (m) => {
                 const roster = Array.isArray(m?.playerRoster) ? m.playerRoster : [];
                 return (
-                  roster.find((p) => playerId && String(p?.id ?? "") === playerId) ||
+                  roster.find((p) => playerId && String(p?.playerId ?? p?.id ?? "") === playerId) ||
                   roster.find((p) => playerNr && String(p?.nr ?? p?.shirtNumber ?? "").trim() === playerNr) ||
                   {
                     id: seasonPlayerDetail?.id,
+                    playerId: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
                     nr: seasonPlayerDetail?.nr,
                     shirtNumber: seasonPlayerDetail?.nr,
                     name: seasonPlayerDetail?.name,
@@ -805,7 +898,7 @@ export default function SeasonCenter({
                   return roster.some((p) => {
                     const nr = normKey(p?.nr);
                     const name = normKey(p?.name);
-                    const id = normKey(p?.id);
+                    const id = normKey(p?.playerId ?? p?.id);
                     return (
                       (playerId && id === normKey(playerId)) ||
                       (playerNr && nr === normKey(playerNr)) ||
@@ -887,7 +980,7 @@ export default function SeasonCenter({
                           Gult: <strong>{totals.yellowCard}</strong> • Rött: <strong>{totals.redCard}</strong>
                         </div>
                         <div>
-                          GK mål: <strong>{totals.gkScored}</strong>
+                          MV mål: <strong>{totals.gkScored}</strong>
                         </div>
                       </>
                     ) : (
@@ -936,7 +1029,7 @@ export default function SeasonCenter({
                                 <th className="text-right p-2 border">Rött</th>
                                 <th className="text-right p-2 border">7m insl</th>
                                 <th className="text-right p-2 border">7m rädd</th>
-                                <th className="text-right p-2 border">GK mål</th>
+                                <th className="text-right p-2 border">MV mål</th>
                               </>
                             ) : (
                               <>
@@ -1015,7 +1108,8 @@ export default function SeasonCenter({
                                       // Open same match directly in player focus
                                       setSeasonPlayerDetail(null);
                                       setSeasonMatchPlayerFocus({
-                                        id: seasonPlayerDetail?.id,
+                                        id: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
+                                        playerId: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
                                         nr: seasonPlayerDetail?.nr,
                                         name: seasonPlayerDetail?.name,
                                         type: seasonPlayerDetail?.type
@@ -1071,16 +1165,27 @@ export default function SeasonCenter({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setSeasonMatchDetail(null);
-                  setSeasonMatchPlayerFocus(null);
-                }}
-                className="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold"
-              >
-                Stäng
-              </button>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                {onExportMatchExcel && (
+                  <button
+                    type="button"
+                    onClick={() => onExportMatchExcel(seasonMatchDetail)}
+                    className="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-sm font-semibold text-white"
+                  >
+                    Excel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSeasonMatchDetail(null);
+                    setSeasonMatchPlayerFocus(null);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold"
+                >
+                  Stäng
+                </button>
+              </div>
             </div>
 
             {(() => {
@@ -1151,6 +1256,7 @@ export default function SeasonCenter({
 
                 return {
                   id: p?.id,
+                  playerId: p?.playerId ?? p?.id,
                   nr: p?.nr ?? "",
                   name: p?.name ?? "",
                   position: p?.position,
@@ -1178,10 +1284,11 @@ export default function SeasonCenter({
               // --- PLAYER FOCUS LOGIC ---
               const focus = seasonMatchPlayerFocus;
               const focusKey = focus ? `${normKey(focus.nr)}|${normKey(focus.name)}` : null;
-              const focusId = focus?.id != null ? String(focus.id) : "";
+              const focusPlayerId = focus?.playerId ?? focus?.id;
+              const focusId = focusPlayerId != null ? String(focusPlayerId) : "";
 
               const matchFocusRow = focus
-                ? rows.find((r) => (focusId && String(r.id ?? "") === focusId) || `${normKey(r.nr)}|${normKey(r.name)}` === focusKey)
+                ? rows.find((r) => (focusId && String(r.playerId ?? r.id ?? "") === focusId) || `${normKey(r.nr)}|${normKey(r.name)}` === focusKey)
                 : null;
 
               if (focus && matchFocusRow) {
@@ -1251,7 +1358,7 @@ export default function SeasonCenter({
                                 <td className="p-2 border text-right"><strong>{r.redCard}</strong></td>
                               </tr>
                               <tr>
-                                <td className="p-2 border">GK mål</td>
+                                <td className="p-2 border">MV mål</td>
                                 <td className="p-2 border text-right"><strong>{r.gkScored}</strong></td>
                               </tr>
                               <tr>
@@ -1362,23 +1469,24 @@ export default function SeasonCenter({
                               <th className="text-left p-2 border">#</th>
                               <th className="text-left p-2 border">Målvakt</th>
                               <th className="text-right p-2 border">Totalt rädd</th>
-                              <th className="text-right p-2 border">Rädd spel</th>
+                              <th className="text-right p-2 border">Rädd</th>
                               <th className="text-right p-2 border">Totalt insl</th>
                               <th className="text-right p-2 border">Insl. spel</th>
+                              <th className="text-right p-2 border">Utanför</th>
+                              <th className="text-right p-2 border">Ribba</th>
                               <th className="text-right p-2 border">Rädd%</th>
+                              <th className="text-right p-2 border">7m insl</th>
+                              <th className="text-right p-2 border">7m rädd</th>
                               <th className="text-right p-2 border">Utvisn</th>
                               <th className="text-right p-2 border">Gult</th>
                               <th className="text-right p-2 border">Rött</th>
-                              <th className="text-right p-2 border">7m insl</th>
-                              <th className="text-right p-2 border">7m rädd</th>
-                              <th className="text-right p-2 border">GK mål</th>
                             </tr>
                           </thead>
                           <tbody>
                             {gks.map((r) => (
                               <tr
-                                key={r.id || r.name}
-                                onClick={() => setSeasonMatchPlayerFocus({ id: r.id, nr: r.nr, name: r.name, type: "gk" })}
+                                key={r.playerId || r.id || r.name}
+                                onClick={() => setSeasonMatchPlayerFocus({ id: r.playerId ?? r.id, playerId: r.playerId ?? r.id, nr: r.nr, name: r.name, type: "gk" })}
                                 className="cursor-pointer hover:bg-slate-50"
                               >
                                 <td className="p-2 border">{r.nr}</td>
@@ -1387,13 +1495,14 @@ export default function SeasonCenter({
                                 <td className="p-2 border text-right">{r.saveOpen}</td>
                                 <td className="p-2 border text-right">{r.gkConceded}</td>
                                 <td className="p-2 border text-right">{r.goalOpen}</td>
+                                <td className="p-2 border text-right">{r.wide}</td>
+                                <td className="p-2 border text-right">{r.post}</td>
                                 <td className="p-2 border text-right">{r.gkPct}</td>
+                                <td className="p-2 border text-right">{r.sevenGoal}</td>
+                                <td className="p-2 border text-right">{r.sevenMiss}</td>
                                 <td className="p-2 border text-right">{r.suspension}</td>
                                 <td className="p-2 border text-right">{r.yellowCard}</td>
                                 <td className="p-2 border text-right">{r.redCard}</td>
-                                <td className="p-2 border text-right">{r.sevenGoal}</td>
-                                <td className="p-2 border text-right">{r.sevenMiss}</td>
-                                <td className="p-2 border text-right">{r.gkScored}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1415,20 +1524,20 @@ export default function SeasonCenter({
                             <th className="text-right p-2 border">Rädd</th>
                             <th className="text-right p-2 border">Utanför</th>
                             <th className="text-right p-2 border">Ribba</th>
+                            <th className="text-right p-2 border">Skott%</th>
                             <th className="text-right p-2 border">7m mål</th>
                             <th className="text-right p-2 border">7m miss</th>
                             <th className="text-right p-2 border">Utvisn</th>
                             <th className="text-right p-2 border">Gult</th>
                             <th className="text-right p-2 border">Rött</th>
                             <th className="text-right p-2 border">Avslut</th>
-                            <th className="text-right p-2 border">Skott%</th>
                           </tr>
                         </thead>
                         <tbody>
                           {fps.map((r) => (
                             <tr
-                              key={r.id || r.name}
-                              onClick={() => setSeasonMatchPlayerFocus({ id: r.id, nr: r.nr, name: r.name, type: "fp" })}
+                              key={r.playerId || r.id || r.name}
+                              onClick={() => setSeasonMatchPlayerFocus({ id: r.playerId ?? r.id, playerId: r.playerId ?? r.id, nr: r.nr, name: r.name, type: "fp" })}
                               className="cursor-pointer hover:bg-slate-50"
                             >
                               <td className="p-2 border">{r.nr}</td>
@@ -1438,13 +1547,13 @@ export default function SeasonCenter({
                               <td className="p-2 border text-right">{r.saves}</td>
                               <td className="p-2 border text-right">{r.wide}</td>
                               <td className="p-2 border text-right">{r.post}</td>
+                              <td className="p-2 border text-right">{r.shotPct}</td>
                               <td className="p-2 border text-right">{r.sevenGoal}</td>
                               <td className="p-2 border text-right">{r.sevenMiss}</td>
                               <td className="p-2 border text-right">{r.suspension}</td>
                               <td className="p-2 border text-right">{r.yellowCard}</td>
                               <td className="p-2 border text-right">{r.redCard}</td>
                               <td className="p-2 border text-right">{r.attempts}</td>
-                              <td className="p-2 border text-right">{r.shotPct}</td>
                             </tr>
                           ))}
                         </tbody>

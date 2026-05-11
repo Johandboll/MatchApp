@@ -1,6 +1,6 @@
 {
   "name": "matchapp",
-  "version": "1.5.1",
+  "version": "2.0.0",
   "private": true,
   "homepage": "https://handbollsportalen.se/matchapp",
   "dependencies": {
@@ -17,10 +17,10 @@
   },
   "scripts": {
     "start": "REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts start",
-    "build": "REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
-    "build:local": "PUBLIC_URL=. REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
-    "build:test": "PUBLIC_URL=/test REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
-    "build:prod": "PUBLIC_URL=/matchapp REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts build",
+    "build": "node scripts/write-version.js && REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
+    "build:local": "node scripts/write-version.js && PUBLIC_URL=. REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
+    "build:test": "node scripts/write-version.js && PUBLIC_URL=/test REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
+    "build:prod": "node scripts/write-version.js && PUBLIC_URL=/matchapp REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 
 export default function AuthView({ appVersion }) {
   const [mode, setMode] = useState("signIn");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -26,15 +27,24 @@ export default function AuthView({ appVersion }) {
     setBusy(true);
     setMessage("");
 
-    const credentials = {
-      email: email.trim(),
-      password
-    };
+    const cleanEmail = email.trim();
+    const cleanDisplayName = displayName.trim();
 
     const { error } =
       mode === "signUp"
-        ? await supabase.auth.signUp(credentials)
-        : await supabase.auth.signInWithPassword(credentials);
+        ? await supabase.auth.signUp({
+            email: cleanEmail,
+            password,
+            options: {
+              data: {
+                display_name: cleanDisplayName
+              }
+            }
+          })
+        : await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password
+          });
 
     if (error) {
       setMessage(error.message);
@@ -162,6 +172,19 @@ export default function AuthView({ appVersion }) {
           </form>
         ) : (
           <form onSubmit={submit} className="space-y-3">
+          {mode === "signUp" && (
+            <label className="block">
+              <span className="text-sm font-semibold text-slate-700">Namn</span>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                autoComplete="name"
+                required
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              />
+            </label>
+          )}
 
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">E-post</span>

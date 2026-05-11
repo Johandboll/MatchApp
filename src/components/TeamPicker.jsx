@@ -1,6 +1,15 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+const normalizeTeamName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onTeamCreated }) {
   const [teamName, setTeamName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -8,13 +17,24 @@ export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onT
 
   const createTeam = async (event) => {
     event.preventDefault();
-    if (!teamName.trim() || !supabase) return;
+    const cleanTeamName = teamName.trim();
+    if (!cleanTeamName || !supabase) return;
+
+    const wantedSlug = normalizeTeamName(cleanTeamName);
+    const duplicateTeam = teams.find((team) => normalizeTeamName(team.name || team.id) === wantedSlug);
+
+    if (duplicateTeam) {
+      setCreateError(
+        `Det finns redan ett lag som heter ${duplicateTeam.name}. Be en ägare eller admin i laget lägga till dig istället.`
+      );
+      return;
+    }
 
     setBusy(true);
     setCreateError("");
 
     const { data, error: rpcError } = await supabase.rpc("create_team_for_current_user", {
-      team_name: teamName
+      team_name: cleanTeamName
     });
 
     if (rpcError) {

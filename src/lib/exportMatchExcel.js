@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { emptyCounters } from "./appHelpers";
+import { emptyCounters, getPlayerId, getPlayerShirtNumber, getPlayerStats } from "./appHelpers";
 
 export async function exportMatchExcel({
   matchInfo,
@@ -32,12 +32,18 @@ export async function exportMatchExcel({
     "Rött"
   ];
 
+  const findPlayerByRef = (ref) =>
+    allPlayers.find((player) => String(getPlayerId(player)) === String(ref)) ||
+    allPlayers.find((player) => String(getPlayerShirtNumber(player) ?? player?.nr) === String(ref));
+
   const sorted = [...selectedPlayers].sort((a, b) => {
-    const playerA = allPlayers.find((player) => String(player.nr) === String(a));
-    const playerB = allPlayers.find((player) => String(player.nr) === String(b));
+    const playerA = findPlayerByRef(a);
+    const playerB = findPlayerByRef(b);
     const aIsGk = playerA?.role === "goalkeeper" ? -1 : 1;
     const bIsGk = playerB?.role === "goalkeeper" ? -1 : 1;
-    const numCmp = Number(playerA?.nr ?? 0) - Number(playerB?.nr ?? 0);
+    const numCmp =
+      Number(getPlayerShirtNumber(playerA) ?? playerA?.nr ?? 0) -
+      Number(getPlayerShirtNumber(playerB) ?? playerB?.nr ?? 0);
     return aIsGk - bIsGk || numCmp;
   });
 
@@ -49,13 +55,16 @@ export async function exportMatchExcel({
     let homeGoals = 0;
     let awayGoals = 0;
 
-    sorted.forEach((nr) => {
-      const player = allPlayers.find((item) => String(item.nr) === String(nr));
-      const playerStats = stats[nr] || {
+    sorted.forEach((playerRef) => {
+      const player = findPlayerByRef(playerRef);
+      if (!player) return;
+
+      const playerStats = getPlayerStats(stats, player) || {
         ...emptyCounters(),
         byHalf: { 1: emptyCounters(), 2: emptyCounters() }
       };
       const usedStats = half ? getHalfCounters(playerStats, half) : playerStats;
+      const shirtNumber = getPlayerShirtNumber(player) ?? player.nr;
 
       if (player?.role === "goalkeeper") {
         homeGoals += usedStats.gkScored || 0;
@@ -66,7 +75,7 @@ export async function exportMatchExcel({
           shotsFaced > 0 ? `${((savesTotal / shotsFaced) * 100).toFixed(1)}%` : "";
 
         gkRows.push({
-          Nummer: player.nr,
+          Nummer: shirtNumber,
           Namn: `${player.name} (MV)`,
           Mål: "",
           "Insl. mål": usedStats.goal || 0,
@@ -87,7 +96,7 @@ export async function exportMatchExcel({
       } else {
         homeGoals += (usedStats.goal || 0) + (usedStats.sevenGoal || 0);
         fieldRows.push({
-          Nummer: player.nr,
+          Nummer: shirtNumber,
           Namn: player.name,
           Mål: usedStats.goal || 0,
           "Insl. mål": "",

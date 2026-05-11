@@ -7,8 +7,11 @@ import MatchSetup from "./components/MatchSetup";
 import MatchSession from "./components/MatchSession";
 import SeasonCenter from "./components/SeasonCenter";
 import TeamAdminPanel from "./components/TeamAdminPanel";
+import ConfirmDialog from "./components/ConfirmDialog";
+import AppUpdatePrompt from "./components/AppUpdatePrompt";
 import { getChangelogTooltip } from "./changelog";
 import { APP_VERSION } from "./config/appVersion";
+import { useAppUpdate } from "./hooks/useAppUpdate";
 import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import { useSupabaseMatches } from "./hooks/useSupabaseMatches";
 import { useSupabaseTeams } from "./hooks/useSupabaseTeams";
@@ -92,6 +95,7 @@ function savePendingOnlineMatches(matches) {
 export default function App() {
   const auth = useSupabaseAuth();
   const onlineTeams = useSupabaseTeams(auth.user);
+  const appUpdate = useAppUpdate();
   const saved = useMemo(() => loadSaved(), []);
   const whatsNew = useWhatsNew();
   const toastTimeoutRef = useRef(null);
@@ -143,6 +147,7 @@ export default function App() {
   const [seasonOpen, setSeasonOpen] = useState(false);
   const [teamAdminOpen, setTeamAdminOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
   const [pendingOnlineMatches, setPendingOnlineMatches] = useState(() => loadPendingOnlineMatches());
 
   const availableTeams = useMemo(() => {
@@ -154,6 +159,8 @@ export default function App() {
     if (selectedTeamId === EXTERNAL_TEAM_ID) return externalTeamData;
     return availableTeams.find((team) => team.id === selectedTeamId) || null;
   }, [availableTeams, selectedTeamId, externalTeamData]);
+  const canManageSelectedTeam =
+    !selectedTeam?.onlineId || ["owner", "admin"].includes(selectedTeam?.membershipRole);
   const onlineMatches = useSupabaseMatches(auth.user, selectedTeam);
 
   const basePlayers = useMemo(() => {
@@ -231,6 +238,14 @@ export default function App() {
     setToast({ text });
     window.clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = window.setTimeout(() => setToast(null), 2000);
+  }, []);
+
+  const requestConfirm = useCallback((options) => {
+    setConfirmDialog(options);
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmDialog(null);
   }, []);
 
   useEffect(() => {
@@ -654,9 +669,11 @@ export default function App() {
       playerRoster: [...selectedPlayers]
         .map((playerRef) => {
           const player = findPlayerByRef(playerRef);
+          const playerId = getPlayerId(player) ?? playerRef;
           const shirtNumber = getPlayerShirtNumber(player);
           return {
-            id: getPlayerId(player) ?? playerRef,
+            id: playerId,
+            playerId,
             nr: Number(shirtNumber),
             shirtNumber: Number(shirtNumber),
             name: player?.name || "",
@@ -725,14 +742,7 @@ export default function App() {
     stats
   ]);
 
-  const confirmReset = useCallback(() => {
-    if (step === 2 && (history.length > 0 || Object.keys(stats || {}).length > 0)) {
-      const message = `Spara matchen (${matchInfo?.date || "-"} vs ${matchInfo?.opponent || "-"}) i säsongen innan du startar ny match?`;
-      if (window.confirm(message)) {
-        saveCurrentMatchToSeason();
-      }
-    }
-
+  const resetMatchState = useCallback(() => {
     setStats({});
     setHistory([]);
     setSelectedPlayers([]);
@@ -763,9 +773,42 @@ export default function App() {
     cupEnabled,
     cupName,
     cupPanelOpen,
-    cupPhase,
+    cupPhase
+  ]);
+
+  const confirmReset = useCallback(() => {
+    if (step === 2 && (history.length > 0 || Object.keys(stats || {}).length > 0)) {
+      requestConfirm({
+        title: "Avsluta match?",
+        message: `Spara matchen (${matchInfo?.date || "-"} vs ${matchInfo?.opponent || "-"}) i säsongen innan du startar ny match?`,
+        confirmText: "Spara och avsluta",
+        secondaryText: "Avsluta utan att spara",
+        cancelText: "Avbryt",
+        variant: "danger",
+        onConfirm: async () => {
+          await saveCurrentMatchToSeason();
+          resetMatchState();
+        },
+        onSecondary: () => {
+          requestConfirm({
+            title: "Avsluta utan att spara?",
+            message: "Matchen tas bort från pågående läge och sparas inte i säsongen.",
+            confirmText: "Ja, avsluta utan att spara",
+            cancelText: "Avbryt",
+            variant: "danger",
+            onConfirm: resetMatchState
+          });
+        }
+      });
+      return;
+    }
+
+    resetMatchState();
+  }, [
     history.length,
     matchInfo,
+    requestConfirm,
+    resetMatchState,
     saveCurrentMatchToSeason,
     stats,
     step
@@ -796,7 +839,31 @@ export default function App() {
     showToast("Säsong (JSON) nedladdad");
   }, [seasonMatchesForView, selectedTeam, selectedTeamId, showToast]);
 
-  const downloadExcel = useCallback(async () => {
+  const downloadExcel = useCallback(async (savedMatch = null) => {
+    if (savedMatch) {
+      const roster = Array.isArray(savedMatch.playerRoster)
+        ? savedMatch.playerRoster.map((player) => ({
+            ...player,
+            nr: player.nr ?? player.shirtNumber,
+            shirtNumber: player.shirtNumber ?? player.nr,
+            id: player.playerId ?? player.id,
+            playerId: player.playerId ?? player.id
+          }))
+        : [];
+
+      await exportMatchExcel({
+        matchInfo: savedMatch.matchInfo || {},
+        cupEnabled: savedMatch.matchType === "cup",
+        cupPanelOpen: savedMatch.matchType === "cup",
+        cupName: savedMatch.cupName || "",
+        cupPhase: savedMatch.cupPhase || "",
+        allPlayers: roster,
+        selectedPlayers: roster.map((player) => player.playerId ?? player.id ?? player.nr),
+        stats: savedMatch.stats || {}
+      });
+      return;
+    }
+
     await exportMatchExcel({
       matchInfo,
       cupEnabled,
@@ -811,6 +878,11 @@ export default function App() {
 
   const handleDeleteSeasonMatch = useCallback(
     async (matchId) => {
+      if (!canManageSelectedTeam) {
+        showToast("Endast ägare/admin kan ta bort matcher");
+        return;
+      }
+
     if (onlineMatches.online) {
       const pendingMatch = pendingOnlineMatches.find((match) => match.id === matchId);
       if (pendingMatch) {
@@ -832,10 +904,15 @@ export default function App() {
       setSeasonMatches((prev) => prev.filter((match) => match.id !== matchId));
       showToast("Match borttagen");
     },
-    [onlineMatches, pendingOnlineMatches, showToast]
+    [canManageSelectedTeam, onlineMatches, pendingOnlineMatches, showToast]
   );
 
   const handleClearSeason = useCallback(async () => {
+    if (!canManageSelectedTeam) {
+      showToast("Endast ägare/admin kan rensa säsongen");
+      return;
+    }
+
     if (seasonMatchesForView.length === 0) {
       showToast("Säsongen är redan tom");
       return;
@@ -863,7 +940,7 @@ export default function App() {
 
     showToast("Säsongen rensad");
     setSeasonOpen(false);
-  }, [onlineMatches, seasonMatchesForView.length, selectedTeamId, showToast]);
+  }, [canManageSelectedTeam, onlineMatches, seasonMatchesForView.length, selectedTeamId, showToast]);
 
   const getSeasonMatchKey = useCallback((match) => {
     const result = match?.result || {};
@@ -962,19 +1039,27 @@ export default function App() {
   );
 
   const handleChangeTeam = useCallback(() => {
-    if (window.confirm("Vill du byta lag? All matchdata raderas.")) {
-      localStorage.removeItem(SELECTED_TEAM_KEY);
-      setExternalTeamData(null);
+    requestConfirm({
+      title: "Byta lag?",
+      message: "All pågående matchdata raderas när du byter lag.",
+      confirmText: "Byt lag",
+      cancelText: "Avbryt",
+      variant: "danger",
+      onConfirm: () => {
+        closeConfirm();
+        localStorage.removeItem(SELECTED_TEAM_KEY);
+        setExternalTeamData(null);
 
-      if (teamFileFromQuery && clubReturnPath) {
-        window.location.href = clubReturnPath;
-        return;
+        if (teamFileFromQuery && clubReturnPath) {
+          window.location.href = clubReturnPath;
+          return;
+        }
+
+        clearTeamQueryParam();
+        window.location.reload();
       }
-
-      clearTeamQueryParam();
-      window.location.reload();
-    }
-  }, [clubReturnPath, teamFileFromQuery]);
+    });
+  }, [closeConfirm, clubReturnPath, requestConfirm, teamFileFromQuery]);
 
   const handleSignOut = useCallback(async () => {
     if (!supabase) return;
@@ -989,6 +1074,7 @@ export default function App() {
         id: createdTeam.slug || createdTeam.id,
         onlineId: createdTeam.id,
         name: createdTeam.name,
+        membershipRole: "owner",
         players: []
       };
 
@@ -1058,11 +1144,19 @@ export default function App() {
         ? "Synkar..."
         : "Synkad online"
     : "Lokal lagring";
+  const updatePrompt = (
+    <AppUpdatePrompt
+      visible={appUpdate.updateAvailable}
+      onReload={appUpdate.reloadToUpdate}
+      reloading={appUpdate.reloading}
+    />
+  );
 
   if (externalTeamLoading) {
     return (
       <div className="p-6 max-w-md mx-auto">
         <h2 className="text-xl font-semibold mb-4">Laddar lag...</h2>
+        {updatePrompt}
       </div>
     );
   }
@@ -1073,12 +1167,18 @@ export default function App() {
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
           Laddar inloggning...
         </div>
+        {updatePrompt}
       </div>
     );
   }
 
   if (isSupabaseConfigured && !auth.user) {
-    return <AuthView appVersion={APP_VERSION} />;
+    return (
+      <>
+        <AuthView appVersion={APP_VERSION} />
+        {updatePrompt}
+      </>
+    );
   }
 
   if (isSupabaseConfigured && onlineTeams.loading) {
@@ -1087,25 +1187,29 @@ export default function App() {
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
           Hämtar dina lag...
         </div>
+        {updatePrompt}
       </div>
     );
   }
 
   if (!selectedTeamId) {
     return (
-      <TeamPicker
-        teams={availableTeams}
-        appVersion={APP_VERSION}
-        onSelectTeam={setSelectedTeamId}
-        error={onlineTeams.error}
-        onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
-      />
+      <>
+        <TeamPicker
+          teams={availableTeams}
+          appVersion={APP_VERSION}
+          onSelectTeam={setSelectedTeamId}
+          error={onlineTeams.error}
+          onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
+        />
+        {updatePrompt}
+      </>
     );
   }
 
   return (
     <div className="p-4 max-w-7xl mx-auto relative">
-      {isSupabaseConfigured && auth.user && (
+      {isSupabaseConfigured && auth.user && !(step === 2 && selectedPlayers.length > 0) && (
         <div className="mb-3 flex justify-end">
           <div className="w-full rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm sm:w-auto">
             <div className="mb-1 flex min-w-0 items-center justify-end gap-2 text-xs text-slate-500">
@@ -1190,7 +1294,6 @@ export default function App() {
           viewMode={viewMode}
           setViewMode={setViewMode}
           undoLast={undoLast}
-          onDownloadExcel={downloadExcel}
           onReset={confirmReset}
           matchInfo={matchInfo}
           liveHome={topbarLiveHome}
@@ -1203,6 +1306,7 @@ export default function App() {
           stats={stats}
           increment={increment}
           playersForUI={playersForUI}
+          onConfirm={requestConfirm}
         />
       )}
 
@@ -1217,6 +1321,9 @@ export default function App() {
         matches={seasonMatchesForView}
         onDeleteMatch={handleDeleteSeasonMatch}
         onClearSeason={handleClearSeason}
+        onExportMatchExcel={downloadExcel}
+        onConfirm={requestConfirm}
+        canManageSeason={canManageSelectedTeam}
       />
 
       <TeamAdminPanel
@@ -1226,6 +1333,27 @@ export default function App() {
         onClose={() => setTeamAdminOpen(false)}
         onToast={showToast}
         onPlayersChanged={handleTeamPlayersChanged}
+        onConfirm={requestConfirm}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDialog)}
+        {...(confirmDialog || {})}
+        onConfirm={() => {
+          const onConfirm = confirmDialog?.onConfirm;
+          closeConfirm();
+          onConfirm?.();
+        }}
+        onSecondary={() => {
+          const onSecondary = confirmDialog?.onSecondary;
+          closeConfirm();
+          onSecondary?.();
+        }}
+        onCancel={() => {
+          const onCancel = confirmDialog?.onCancel;
+          closeConfirm();
+          onCancel?.();
+        }}
       />
 
       {toast && (
@@ -1244,6 +1372,8 @@ export default function App() {
         items={whatsNew.items}
         onClose={whatsNew.close}
       />
+
+      {updatePrompt}
     </div>
   );
 }

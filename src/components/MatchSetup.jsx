@@ -1,5 +1,46 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useState } from "react";
 import Tooltip from "./Tooltip";
+
+const monthNames = [
+  "Januari",
+  "Februari",
+  "Mars",
+  "April",
+  "Maj",
+  "Juni",
+  "Juli",
+  "Augusti",
+  "September",
+  "Oktober",
+  "November",
+  "December"
+];
+
+const weekdayNames = ["M", "T", "O", "T", "F", "L", "S"];
+
+function parseDate(value) {
+  if (!value) return null;
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function sameDay(a, b) {
+  return (
+    a &&
+    b &&
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
 
 export default function MatchSetup({
   teamName,
@@ -20,32 +61,32 @@ export default function MatchSetup({
   appVersion,
   changelogTooltip
 }) {
-  const dateInputRef = useRef(null);
+  const selectedDate = parseDate(matchInfo.date);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() => selectedDate || new Date());
 
-  const isMobile = useMemo(() => {
-    try {
-      return window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-    } catch {
-      return false;
-    }
-  }, []);
+  const calendarDays = useMemo(() => {
+    const year = visibleMonth.getFullYear();
+    const month = visibleMonth.getMonth();
+    const first = new Date(year, month, 1);
+    const mondayOffset = (first.getDay() + 6) % 7;
+    const start = new Date(year, month, 1 - mondayOffset);
 
-  const openDatePicker = () => {
-    const input = dateInputRef.current;
-    if (!input) return;
-    try {
-      if (typeof input.showPicker === "function") {
-        input.showPicker();
-      } else {
-        input.focus();
-        input.click();
-      }
-    } catch {
-      try {
-        input.focus();
-        input.click();
-      } catch {}
-    }
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return date;
+    });
+  }, [visibleMonth]);
+
+  const openCalendar = () => {
+    setVisibleMonth(selectedDate || new Date());
+    setCalendarOpen(true);
+  };
+
+  const changeDate = (date) => {
+    setCalendarOpen(false);
+    onMatchInfoChange({ target: { name: "date", value: formatDate(date) } });
   };
 
   const getPlayerId = (player) => player.id ?? player.nr;
@@ -71,50 +112,117 @@ export default function MatchSetup({
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 text-base font-bold text-slate-900">Matchinformation</div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <label className="block">
+          <div className="block">
             <span className="mb-1 block text-sm font-semibold text-slate-700">Datum</span>
-            {isMobile ? (
-              <div className="relative w-full">
-                <input
-                  type="text"
-                  placeholder="Välj datum"
-                  className="h-[46px] w-full rounded-xl border border-slate-300 px-3 text-base pointer-events-none select-none"
-                  value={matchInfo.date}
-                  readOnly
-                />
-                <input
-                  id="match-date"
-                  type="date"
-                  name="date"
-                  className="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 bg-transparent p-0 m-0 opacity-[0.01] text-transparent caret-transparent"
-                  onChange={onMatchInfoChange}
-                  value={matchInfo.date}
-                  aria-label="Datum"
-                />
-              </div>
-            ) : (
-              <div className="relative w-full">
-                <input
-                  type="text"
-                  placeholder="Välj datum"
-                  className="h-[46px] w-full cursor-pointer rounded-xl border border-slate-300 px-3 text-base"
-                  value={matchInfo.date}
-                  readOnly
-                  onClick={openDatePicker}
-                />
-                <input
-                  ref={dateInputRef}
-                  id="match-date"
-                  type="date"
-                  name="date"
-                  className="absolute inset-0 h-0 w-0 opacity-0 pointer-events-none"
-                  onChange={onMatchInfoChange}
-                  value={matchInfo.date}
-                  aria-label="Datum"
-                />
-              </div>
-            )}
-          </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={openCalendar}
+                className={`h-[46px] w-full rounded-xl border border-slate-300 bg-white px-3 text-left text-base ${
+                  matchInfo.date ? "text-slate-900" : "text-slate-400"
+                }`}
+                aria-label="Välj datum"
+              >
+                {matchInfo.date || "Välj datum"}
+              </button>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-400">
+                ▾
+              </span>
+
+              {calendarOpen && (
+                <div
+                  className="absolute left-0 top-[54px] z-30 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleMonth(
+                          new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1)
+                        )
+                      }
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                      aria-label="Föregående månad"
+                    >
+                      ‹
+                    </button>
+                    <div className="text-center">
+                      <div className="text-base font-extrabold text-slate-900">
+                        {monthNames[visibleMonth.getMonth()]}
+                      </div>
+                      <div className="text-xs font-semibold text-slate-500">
+                        {visibleMonth.getFullYear()}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleMonth(
+                          new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1)
+                        )
+                      }
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                      aria-label="Nästa månad"
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase text-slate-400">
+                    {weekdayNames.map((day) => (
+                      <div key={day} className="py-1">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-1 grid grid-cols-7 gap-1">
+                    {calendarDays.map((date) => {
+                      const inMonth = date.getMonth() === visibleMonth.getMonth();
+                      const selected = sameDay(date, selectedDate);
+                      const today = sameDay(date, new Date());
+
+                      return (
+                        <button
+                          key={formatDate(date)}
+                          type="button"
+                          onClick={() => changeDate(date)}
+                          className={`h-10 rounded-xl text-sm font-bold ${
+                            selected
+                              ? "bg-sky-600 text-white"
+                              : today
+                                ? "border border-sky-200 bg-sky-50 text-sky-800"
+                                : inMonth
+                                  ? "text-slate-800 hover:bg-slate-100"
+                                  : "text-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          {date.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex justify-between gap-2 border-t border-slate-100 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setCalendarOpen(false)}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                    >
+                      Stäng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeDate(new Date())}
+                      className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                    >
+                      Idag
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-slate-700">Motståndare</span>
@@ -130,16 +238,23 @@ export default function MatchSetup({
 
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-slate-700">Plats</span>
-            <select
-              name="location"
-              className="h-[46px] w-full rounded-xl border border-slate-300 bg-white px-3 text-base"
-              onChange={onMatchInfoChange}
-              value={matchInfo.location}
-            >
-              <option value="">Välj plats</option>
-              <option value="Hemma">Hemma</option>
-              <option value="Borta">Borta</option>
-            </select>
+            <div className="relative">
+              <select
+                name="location"
+                className={`h-[46px] w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 pr-10 text-base ${
+                  matchInfo.location ? "text-slate-900" : "text-slate-400"
+                }`}
+                onChange={onMatchInfoChange}
+                value={matchInfo.location}
+              >
+                <option value="">Välj plats</option>
+                <option value="Hemma">Hemma</option>
+                <option value="Borta">Borta</option>
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-400">
+                ▾
+              </span>
+            </div>
           </label>
         </div>
       </div>
@@ -205,24 +320,29 @@ export default function MatchSetup({
             <input
               type="text"
               placeholder="Cup/turneringens namn (valfritt)"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base"
+              className="h-[46px] w-full rounded-xl border border-slate-300 px-3 text-base"
               value={cupName}
               onChange={(e) => setCupName(e.target.value)}
             />
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">Cupfas</span>
+            <label className="relative block">
               <select
                 value={cupPhase}
                 onChange={(e) => setCupPhase(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base"
+                className={`h-[46px] w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 pr-10 text-base ${
+                  cupPhase ? "text-slate-900" : "text-slate-400"
+                }`}
+                aria-label="Cupfas"
               >
-                <option value="">(ingen)</option>
+                <option value="">Cupfas (valfritt)</option>
                 <option value="Grupp">Grupp</option>
                 <option value="Åttondel">Åttondel</option>
                 <option value="Kvart">Kvart</option>
                 <option value="Semi">Semi</option>
                 <option value="Final">Final</option>
               </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-400">
+                ▾
+              </span>
             </label>
           </div>
         )}

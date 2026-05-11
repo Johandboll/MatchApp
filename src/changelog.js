@@ -2,6 +2,16 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.0": [
+    "**Online och inloggning:** Du kan nu skapa konto och logga in i MatchApp. Matcher, spelare och säsongsstatistik kan sparas online så att samma lag kan användas från flera enheter.",
+    "**Lag och medlemmar:** Varje lag har egna spelare, matcher och statistik. En användare kan vara kopplad till flera lag, och ägare/admin kan lägga till fler personer via Lagadmin.",
+    "**Lagadmin:** Hantera lagets spelare och medlemmar direkt i appen. Du kan lägga till spelare, ändra nummer, ändra roll och inaktivera spelare som inte längre ska vara med i truppen.",
+    "**Offline-stöd:** MatchApp fungerar bättre vid dålig täckning. Om du sparar en match offline försöker appen synka den automatiskt när uppkopplingen kommer tillbaka.",
+    "**Säsongsläge:** Säsongsläget har blivit tydligare. Matcherna visar mer information direkt, och du kan fortfarande öppna varje match för full statistik. Det finns också bättre stöd för cup/turnering och cupfas.",
+    "**Säkrare hantering:** Flera riskmoment har fått tydligare MatchApp-dialoger, till exempel när du avslutar en match utan att spara, byter lag eller tar bort matcher.",
+    "**Ny matchvy:** Starten för ny match har fått vald spelarräknare, större datumväljare och mer enhetliga fält.",
+    "**Bra att veta:** Om ett lag redan finns ska du inte skapa det igen. Be i stället en ägare eller admin i laget att lägga till dig, annars hamnar statistik i olika lag."
+  ],
   "1.5.1": [
     "**Fix:** Säsongsstatistiken använder nu samma beräkningar som matchstatistiken för målvakter, utespelare, totaler och detaljvyer."
   ],

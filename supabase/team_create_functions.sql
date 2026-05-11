@@ -19,8 +19,6 @@ as $$
 declare
   clean_name text;
   base_slug text;
-  final_slug text;
-  suffix int := 1;
   new_team_id uuid;
 begin
   if auth.uid() is null then
@@ -39,15 +37,17 @@ begin
     base_slug := 'lag';
   end if;
 
-  final_slug := base_slug;
-
-  while exists (select 1 from public.teams t where t.slug = final_slug) loop
-    suffix := suffix + 1;
-    final_slug := base_slug || '-' || suffix::text;
-  end loop;
+  if exists (
+    select 1
+    from public.teams t
+    where public.slugify_team_name(t.name) = base_slug
+       or t.slug = base_slug
+  ) then
+    raise exception 'Det finns redan ett lag med det namnet. Be en ägare eller admin i laget lägga till dig istället.';
+  end if;
 
   insert into public.teams (name, slug)
-  values (clean_name, final_slug)
+  values (clean_name, base_slug)
   returning teams.id into new_team_id;
 
   insert into public.team_members (team_id, user_id, role)

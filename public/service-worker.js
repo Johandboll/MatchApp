@@ -1,4 +1,4 @@
-const CACHE_NAME = "matchapp-shell-v2";
+const CACHE_NAME = "matchapp-shell-v3";
 
 const getBasePath = () => {
   const path = self.location.pathname.replace(/\/service-worker\.js$/, "");
@@ -12,6 +12,7 @@ const shellUrls = [
   `${baseUrl}/`,
   `${baseUrl}/index.html`,
   `${baseUrl}/asset-manifest.json`,
+  `${baseUrl}/version.json`,
   `${baseUrl}/manifest.json`,
   `${baseUrl}/icons/icon-192.png`,
   `${baseUrl}/icons/icon-512.png`
@@ -53,7 +54,6 @@ self.addEventListener("install", (event) => {
         await cacheUrls(cache, shellUrls);
         await cacheUrls(cache, await getBuildAssetUrls());
       })
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -68,12 +68,27 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
   const requestUrl = new URL(request.url);
   if (requestUrl.origin !== self.location.origin) return;
+
+  if (requestUrl.pathname === `${basePath}/version.json`) {
+    event.respondWith(
+      fetch(new Request(request.url, { cache: "no-store", credentials: "same-origin" }))
+        .then((response) => response)
+        .catch(() => caches.match(`${baseUrl}/version.json`))
+    );
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
