@@ -240,8 +240,8 @@ export default function SeasonCenter({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50">
-      <div className="sticky top-0 z-10 bg-white border-b">
+    <div className="season-center-shell fixed inset-0 z-50 flex flex-col overflow-hidden bg-slate-50">
+      <div className="shrink-0 bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs text-slate-500">MatchApp – Säsongscenter</div>
@@ -340,7 +340,7 @@ export default function SeasonCenter({
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-4 overflow-auto h-[calc(100vh-140px)]">
+      <div className="season-center-scroll w-full max-w-7xl mx-auto px-4 py-4">
         {seasonTab === "overview" && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -221,8 +221,8 @@ export default function App() {
   );
 
   const seasonSummary = useMemo(
-    () => buildSeasonSummary(seasonMatchesForView, teamsData),
-    [seasonMatchesForView]
+    () => buildSeasonSummary(seasonMatchesForView, selectedTeam ? [selectedTeam] : teamsData),
+    [seasonMatchesForView, selectedTeam]
   );
   const seasonKpis = useMemo(
     () => buildSeasonKpis(seasonMatchesForView, seasonSummary.fieldPlayers),

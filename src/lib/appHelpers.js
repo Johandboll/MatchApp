@@ -31,12 +31,30 @@ export function pct(numerator, denominator) {
   return `${Number.isFinite(value) ? value.toFixed(1) : "0.0"}%`;
 }
 
-export const getPlayerId = (player) => player?.playerId ?? player?.id ?? player?.nr;
+const firstPresent = (...values) =>
+  values.find((value) => value !== undefined && value !== null && value !== "");
 
-export const getPlayerShirtNumber = (player) => player?.shirtNumber ?? player?.nr;
+export const getPlayerId = (player) => firstPresent(player?.playerId, player?.id, player?.nr);
+
+export const getPlayerShirtNumber = (player) => firstPresent(player?.shirtNumber, player?.nr);
 
 export const playerMatchesRef = (player, ref) =>
   String(getPlayerId(player)) === String(ref) || String(player?.nr) === String(ref);
+
+const normPlayerText = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const sameShirtNumber = (a, b) => {
+  const na = Number(a);
+  const nb = Number(b);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na === nb;
+  return String(a ?? "") === String(b ?? "");
+};
 
 export const getPlayerStats = (statsMap, player) => {
   if (!player) return {};
@@ -45,24 +63,41 @@ export const getPlayerStats = (statsMap, player) => {
   const idStr = id != null ? String(id) : "";
   const nr = getPlayerShirtNumber(player) ?? player?.nr;
   const nrStr = nr != null ? String(nr) : "";
+  const statRefs = [
+    id,
+    player?.playerId,
+    player?.id,
+    nr,
+    player?.shirtNumber,
+    player?.nr,
+    ...(Array.isArray(player?.statRefs) ? player.statRefs : [])
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .map((value) => String(value));
+  const uniqueStatRefs = Array.from(new Set(statRefs));
 
   if (Array.isArray(statsMap)) {
-    const hit =
-      (idStr ? statsMap.find((entry) => String(entry?.id ?? "") === idStr) : null) ||
-      (idStr ? statsMap.find((entry) => String(entry?.playerId ?? "") === idStr) : null) ||
-      (nrStr ? statsMap.find((entry) => String(entry?.nr ?? "") === nrStr) : null);
+    const hit = uniqueStatRefs
+      .map(
+        (ref) =>
+          statsMap.find((entry) => String(entry?.id ?? "") === ref) ||
+          statsMap.find((entry) => String(entry?.playerId ?? "") === ref) ||
+          statsMap.find((entry) => String(entry?.nr ?? "") === ref)
+      )
+      .find(Boolean);
     return hit?.stats || hit || {};
   }
 
   const obj = statsMap || {};
+  for (const ref of uniqueStatRefs) {
+    if (obj[ref]) return obj[ref];
+    if (obj.players?.[ref]) return obj.players[ref];
+  }
+
   return (
     (id != null ? obj[id] : null) ||
     (idStr ? obj[idStr] : null) ||
     (nrStr ? obj[nrStr] : null) ||
-    (obj.players &&
-      ((id != null ? obj.players[id] : null) ||
-        (idStr ? obj.players[idStr] : null) ||
-        (nrStr ? obj.players[nrStr] : null))) ||
     {}
   );
 };
@@ -229,7 +264,60 @@ const resolvePlayersInMatch = (match, teamsData) => {
       .filter((player) => Number.isFinite(Number(player.nr)));
   }
 
-  return playersInMatch;
+  const team = teamsData.find((item) => item.id === match.teamId);
+  const basePlayers = Array.isArray(team?.players) ? team.players : [];
+  if (basePlayers.length === 0) return playersInMatch;
+
+  const findCanonicalPlayer = (player) => {
+    const playerId = getPlayerId(player);
+    const shirtNumber = getPlayerShirtNumber(player);
+    const name = normPlayerText(player?.name);
+
+    const byId = basePlayers.find((item) => {
+      const itemId = getPlayerId(item);
+      return playerId != null && playerId !== "" && itemId != null && String(itemId) === String(playerId);
+    });
+    if (byId) return byId;
+
+    const byNameAndNumber = basePlayers.find(
+      (item) =>
+        name &&
+        normPlayerText(item?.name) === name &&
+        sameShirtNumber(getPlayerShirtNumber(item), shirtNumber)
+    );
+    if (byNameAndNumber) return byNameAndNumber;
+
+    const byName = basePlayers.filter((item) => name && normPlayerText(item?.name) === name);
+    return byName.length === 1 ? byName[0] : null;
+  };
+
+  return playersInMatch.map((player) => {
+    const canonical = findCanonicalPlayer(player);
+    if (!canonical) return player;
+
+    const canonicalId = getPlayerId(canonical);
+    const canonicalShirtNumber = getPlayerShirtNumber(canonical);
+
+    return {
+      ...player,
+      id: canonicalId,
+      playerId: canonicalId,
+      nr: canonicalShirtNumber,
+      shirtNumber: canonicalShirtNumber,
+      name: canonical.name || player.name || "",
+      role: canonical.role === "goalkeeper" ? "goalkeeper" : player.role,
+      statRefs: [
+        getPlayerId(player),
+        player?.playerId,
+        player?.id,
+        getPlayerShirtNumber(player),
+        player?.shirtNumber,
+        player?.nr,
+        canonicalId,
+        canonicalShirtNumber
+      ]
+    };
+  });
 };
 
 export const buildSeasonSummary = (matches, teamsData) => {
