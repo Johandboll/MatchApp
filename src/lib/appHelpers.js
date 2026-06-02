@@ -1,6 +1,7 @@
 export const APP_STATE_KEY = "handbollsstat-state";
 export const SEASON_STATE_KEY = "handbollsstat-season";
 export const SELECTED_TEAM_KEY = "handbollsstat-selectedTeamId";
+export const SELECTED_SEASON_KEY = "handbollsstat-selectedSeason";
 
 export const TEAM_IDS = ["p13-14", "p16-19"];
 
@@ -29,6 +30,42 @@ export function pct(numerator, denominator) {
   if (!denominator) return "";
   const value = (numerator / denominator) * 100;
   return `${Number.isFinite(value) ? value.toFixed(1) : "0.0"}%`;
+}
+
+export function getSeasonFromDate(dateValue) {
+  const match = String(dateValue || "").match(/^(\d{4})-(\d{2})-\d{2}/);
+  if (!match) return "";
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return "";
+
+  const startYear = month >= 7 ? year : year - 1;
+  return `${startYear}/${startYear + 1}`;
+}
+
+export function getDefaultSeason(date = new Date()) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const startYear = month >= 7 ? year : year - 1;
+  return `${startYear}/${startYear + 1}`;
+}
+
+export function getMatchSeason(match) {
+  return match?.season || match?.matchInfo?.season || getSeasonFromDate(match?.matchInfo?.date);
+}
+
+export function getSeasonStartYear(season) {
+  const year = Number(String(season || "").split("/")[0]);
+  return Number.isFinite(year) ? year : 0;
+}
+
+export function buildSeasonOptions(selectedSeason = getDefaultSeason()) {
+  const startYear = getSeasonStartYear(selectedSeason) || getSeasonStartYear(getDefaultSeason());
+  return [-1, 0, 1, 2].map((offset) => {
+    const year = startYear + offset;
+    return `${year}/${year + 1}`;
+  });
 }
 
 const firstPresent = (...values) =>
@@ -230,10 +267,12 @@ export function clearTeamQueryParam() {
   } catch {}
 }
 
-export const filterSeasonMatchesByTeam = (seasonMatches, selectedTeamId) =>
-  selectedTeamId
-    ? seasonMatches.filter((match) => match.teamId === selectedTeamId)
-    : seasonMatches;
+export const filterSeasonMatchesByTeam = (seasonMatches, selectedTeamId, selectedSeason = "") =>
+  (seasonMatches || []).filter((match) => {
+    const teamMatches = selectedTeamId ? match.teamId === selectedTeamId : true;
+    const seasonMatches = selectedSeason ? getMatchSeason(match) === selectedSeason : true;
+    return teamMatches && seasonMatches;
+  });
 
 const resolvePlayersInMatch = (match, teamsData) => {
   let playersInMatch = Array.isArray(match.playerRoster) ? match.playerRoster : [];

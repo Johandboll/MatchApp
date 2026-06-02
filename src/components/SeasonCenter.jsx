@@ -9,6 +9,9 @@ import {
 export default function SeasonCenter({
   open,
   selectedTeam,
+  selectedSeason,
+  seasonOptions = [],
+  onSeasonChange,
   seasonKpis,
   onExportBackup,
   onImportBackup,
@@ -249,10 +252,24 @@ export default function SeasonCenter({
               {selectedTeam?.name ? `Säsong: ${selectedTeam.name}` : "Säsong"}
             </div>
             <div className="text-xs text-slate-500">
-              Matcher: {scopedSeasonKpis.matchCount} • Mål: {scopedSeasonKpis.ourGoals} • Insläppta:{" "}
+              {selectedSeason || "Alla säsonger"} • Matcher: {scopedSeasonKpis.matchCount} • Mål: {scopedSeasonKpis.ourGoals} • Insläppta:{" "}
               {scopedSeasonKpis.oppGoals}
             </div>
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap gap-2">
+              {onSeasonChange && (
+                <select
+                  value={selectedSeason || ""}
+                  onChange={(e) => onSeasonChange(e.target.value)}
+                  className="border rounded-xl px-3 py-2 text-sm bg-white"
+                  title="Välj säsong"
+                >
+                  {seasonOptions.map((season) => (
+                    <option key={season} value={season}>
+                      {season}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
                 value={seasonScope}
                 onChange={(e) => setSeasonScope(e.target.value)}

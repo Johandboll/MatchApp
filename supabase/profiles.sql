@@ -14,16 +14,19 @@ drop policy if exists "users can insert their own profile" on public.profiles;
 
 create policy "users can read their own profile"
 on public.profiles for select
-using (user_id = auth.uid());
+to authenticated
+using (user_id = (select auth.uid()));
 
 create policy "users can update their own profile"
 on public.profiles for update
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+to authenticated
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
 
 create policy "users can insert their own profile"
 on public.profiles for insert
-with check (user_id = auth.uid());
+to authenticated
+with check (user_id = (select auth.uid()));
 
 create or replace function public.handle_new_user_profile()
 returns trigger

@@ -8,6 +8,7 @@ const mapMatchFromDb = (row, team) => ({
   onlineTeamId: row.team_id,
   teamName: team?.name || "",
   matchInfo: row.match_info || {},
+  season: row.match_info?.season || "",
   matchType: row.match_type || "series",
   cupName: row.cup_name || "",
   cupPhase: row.cup_phase || "",
@@ -66,7 +67,7 @@ export function useSupabaseMatches(user, selectedTeam) {
         .insert({
           team_id: selectedTeam.onlineId,
           created_by: user.id,
-          match_info: matchRecord.matchInfo,
+          match_info: { ...(matchRecord.matchInfo || {}), season: matchRecord.season || matchRecord.matchInfo?.season || "" },
           match_type: matchRecord.matchType,
           cup_name: matchRecord.cupName,
           cup_phase: matchRecord.cupPhase,

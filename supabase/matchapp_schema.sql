@@ -80,42 +80,71 @@ $$;
 
 create policy "members can read their teams"
 on public.teams for select
+to authenticated
 using (public.is_team_member(id));
 
 create policy "users can read their own team memberships"
 on public.team_members for select
-using (user_id = auth.uid());
+to authenticated
+using (user_id = (select auth.uid()));
 
-create policy "admins can manage team memberships"
-on public.team_members for all
+create policy "admins can insert team memberships"
+on public.team_members for insert
+to authenticated
+with check (public.is_team_admin(team_id));
+
+create policy "admins can update team memberships"
+on public.team_members for update
+to authenticated
 using (public.is_team_admin(team_id))
 with check (public.is_team_admin(team_id));
+
+create policy "admins can delete team memberships"
+on public.team_members for delete
+to authenticated
+using (public.is_team_admin(team_id));
 
 create policy "members can read players"
 on public.players for select
+to authenticated
 using (public.is_team_member(team_id));
 
-create policy "admins can manage players"
-on public.players for all
+create policy "admins can insert players"
+on public.players for insert
+to authenticated
+with check (public.is_team_admin(team_id));
+
+create policy "admins can update players"
+on public.players for update
+to authenticated
 using (public.is_team_admin(team_id))
 with check (public.is_team_admin(team_id));
 
+create policy "admins can delete players"
+on public.players for delete
+to authenticated
+using (public.is_team_admin(team_id));
+
 create policy "members can read matches"
 on public.matches for select
+to authenticated
 using (public.is_team_member(team_id));
 
 create policy "members can create matches"
 on public.matches for insert
+to authenticated
 with check (
-  created_by = auth.uid()
+  created_by = (select auth.uid())
   and public.is_team_member(team_id)
 );
 
 create policy "members can update matches"
 on public.matches for update
+to authenticated
 using (public.is_team_member(team_id))
 with check (public.is_team_member(team_id));
 
 create policy "admins can delete matches"
 on public.matches for delete
+to authenticated
 using (public.is_team_admin(team_id));
