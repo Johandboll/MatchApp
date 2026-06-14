@@ -51,12 +51,17 @@ export function getDefaultSeason(date = new Date()) {
   return `${startYear}/${startYear + 1}`;
 }
 
+export function normalizeSeason(value) {
+  const match = String(value || "").match(/(\d{4})\s*\/\s*(\d{4})/);
+  return match ? `${match[1]}/${match[2]}` : String(value || "");
+}
+
 export function getMatchSeason(match) {
-  return match?.season || match?.matchInfo?.season || getSeasonFromDate(match?.matchInfo?.date);
+  return normalizeSeason(match?.season || match?.matchInfo?.season || getSeasonFromDate(match?.matchInfo?.date));
 }
 
 export function getSeasonStartYear(season) {
-  const year = Number(String(season || "").split("/")[0]);
+  const year = Number(normalizeSeason(season).split("/")[0]);
   return Number.isFinite(year) ? year : 0;
 }
 

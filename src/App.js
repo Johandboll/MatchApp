@@ -35,6 +35,7 @@ import {
   getSeasonStartYear,
   loadSaved,
   loadSeasonMatches,
+  normalizeSeason,
   sortPlayersForUI
 } from "./lib/appHelpers";
 
@@ -1021,23 +1022,26 @@ export default function App() {
 
       const importedMatches = data.matches
         .filter((match) => !data.teamId || match.teamId === data.teamId)
-        .map((match) => ({
-          ...match,
-          id: match.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
-          createdAt: match.createdAt || new Date().toISOString(),
-          teamId: selectedTeamId,
-          teamName: selectedTeam.name || match.teamName || "",
-          matchInfo: match.matchInfo || {},
-          season: match.season || match.matchInfo?.season || getMatchSeason(match) || selectedSeason,
-          matchType: match.matchType || "series",
-          cupName: match.cupName || "",
-          cupPhase: match.cupPhase || "",
-          result: match.result || {},
-          selectedPlayers: match.selectedPlayers || [],
-          playerRoster: match.playerRoster || [],
-          stats: match.stats || {},
-          history: match.history || []
-        }));
+        .map((match) => {
+          const season = normalizeSeason(match.season || match.matchInfo?.season || getMatchSeason(match) || selectedSeason);
+          return {
+            ...match,
+            id: match.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            createdAt: match.createdAt || new Date().toISOString(),
+            teamId: selectedTeamId,
+            teamName: selectedTeam.name || match.teamName || "",
+            matchInfo: { ...(match.matchInfo || {}), season },
+            season,
+            matchType: match.matchType || "series",
+            cupName: match.cupName || "",
+            cupPhase: match.cupPhase || "",
+            result: match.result || {},
+            selectedPlayers: match.selectedPlayers || [],
+            playerRoster: match.playerRoster || [],
+            stats: match.stats || {},
+            history: match.history || []
+          };
+        });
 
       if (importedMatches.length === 0) {
         showToast("Backupen innehåller inga matcher för valt lag");
