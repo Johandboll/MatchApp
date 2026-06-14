@@ -40,14 +40,14 @@ export function getSeasonFromDate(dateValue) {
   const month = Number(match[2]);
   if (!Number.isFinite(year) || !Number.isFinite(month)) return "";
 
-  const startYear = month >= 7 ? year : year - 1;
+  const startYear = month >= 6 ? year : year - 1;
   return `${startYear}/${startYear + 1}`;
 }
 
 export function getDefaultSeason(date = new Date()) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
-  const startYear = month >= 7 ? year : year - 1;
+  const startYear = month >= 6 ? year : year - 1;
   return `${startYear}/${startYear + 1}`;
 }
 
@@ -62,10 +62,10 @@ export function getSeasonStartYear(season) {
 
 export function buildSeasonOptions(selectedSeason = getDefaultSeason()) {
   const startYear = getSeasonStartYear(selectedSeason) || getSeasonStartYear(getDefaultSeason());
-  return [-1, 0, 1, 2].map((offset) => {
-    const year = startYear + offset;
-    return `${year}/${year + 1}`;
-  });
+  return [-1, 0, 1, 2]
+    .map((offset) => startYear + offset)
+    .filter((year) => year >= 2025)
+    .map((year) => `${year}/${year + 1}`);
 }
 
 const firstPresent = (...values) =>

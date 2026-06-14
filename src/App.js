@@ -242,6 +242,13 @@ export default function App() {
       selectedTeamId
     ]
   );
+  const matchesForPlayerImport = useMemo(
+    () =>
+      onlineMatches.online
+        ? [...onlineMatches.matches, ...pendingOnlineMatches.filter((match) => match.teamId === selectedTeamId)]
+        : filterSeasonMatchesByTeam(seasonMatches, selectedTeamId),
+    [onlineMatches.matches, onlineMatches.online, pendingOnlineMatches, seasonMatches, selectedTeamId]
+  );
   const seasonOptions = useMemo(() => buildSeasonOptions(selectedSeason), [selectedSeason]);
 
   const seasonSummary = useMemo(
@@ -1285,18 +1292,6 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-              <select
-                value={selectedSeason}
-                onChange={(event) => setSelectedSeason(event.target.value)}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
-                title="Välj säsong"
-              >
-                {seasonOptions.map((season) => (
-                  <option key={season} value={season}>
-                    {season}
-                  </option>
-                ))}
-              </select>
               <button
                 type="button"
                 onClick={() => setSeasonOpen(true)}
@@ -1404,6 +1399,7 @@ export default function App() {
         onToast={showToast}
         onPlayersChanged={handleTeamPlayersChanged}
         onConfirm={requestConfirm}
+        matches={matchesForPlayerImport}
       />
 
       <ConfirmDialog

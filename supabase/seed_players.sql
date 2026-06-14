@@ -49,7 +49,7 @@ join (values
   ('p13-14', 14, 'William Augustin', 'field'),
   ('p13-14', 16, 'William Kindblad', 'goalkeeper')
 ) as v(team_slug, shirt_number, name, role) on v.team_slug = t.slug
-on conflict (team_id, shirt_number) do update
-set name = excluded.name,
+on conflict (team_id, name) do update
+set shirt_number = excluded.shirt_number,
     role = excluded.role,
     active = true;

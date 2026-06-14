@@ -23,7 +23,7 @@ create table if not exists public.players (
   role text not null default 'field' check (role in ('field', 'goalkeeper')),
   active boolean not null default true,
   created_at timestamptz not null default now(),
-  unique (team_id, shirt_number)
+  unique (team_id, name)
 );
 
 create table if not exists public.matches (

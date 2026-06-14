@@ -2,6 +2,12 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.1": [
+    "**Spelare från matcher:** Lagadmin kan nu föreslå spelare som finns i importerade matcher men saknas i truppen, så du slipper lägga in dem manuellt.",
+    "**Tröjnummer:** Samma tröjnummer kan nu användas av flera spelare i samma lag. Appen använder namn som identitet och nummer som visning.",
+    "**Säsong:** Ny säsong startar nu 1 juni varje år. Standardsäsongen är 2026/2027 och säsong 2024/2025 visas inte längre.",
+    "**Matchvyn:** Säsongsvalet är borttaget från matchvyn för att minska risken att matcher hamnar på fel säsong."
+  ],
   "2.0.0": [
     "**Online och inloggning:** Du kan nu skapa konto och logga in i MatchApp. Matcher, spelare och säsongsstatistik kan sparas online så att samma lag kan användas från flera enheter.",
     "**Lag och medlemmar:** Varje lag har egna spelare, matcher och statistik. En användare kan vara kopplad till flera lag, och ägare/admin kan lägga till fler personer via Lagadmin.",

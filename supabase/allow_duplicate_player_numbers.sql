@@ -1,22 +1,8 @@
-create or replace function public.list_team_players(target_team_id uuid)
-returns table (
-  id uuid,
-  shirt_number numeric,
-  name text,
-  role text,
-  active boolean
-)
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select p.id, p.shirt_number, p.name, p.role, p.active
-  from public.players p
-  where p.team_id = target_team_id
-    and public.is_team_member(target_team_id)
-  order by p.active desc, p.shirt_number, p.name;
-$$;
+alter table public.players
+drop constraint if exists players_team_id_shirt_number_key;
+
+alter table public.players
+add constraint players_team_id_name_key unique (team_id, name);
 
 create or replace function public.upsert_team_player(
   target_team_id uuid,
@@ -75,38 +61,6 @@ begin
     where p.id = player_id
       and p.team_id = target_team_id;
   end if;
-
-  return query
-  select lp.id, lp.shirt_number, lp.name, lp.role, lp.active
-  from public.list_team_players(target_team_id) lp;
-end;
-$$;
-
-create or replace function public.set_team_player_active(
-  target_team_id uuid,
-  player_id uuid,
-  is_active boolean
-)
-returns table (
-  id uuid,
-  shirt_number numeric,
-  name text,
-  role text,
-  active boolean
-)
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if not public.is_team_admin(target_team_id) then
-    raise exception 'Du saknar behörighet att ändra spelare i laget.';
-  end if;
-
-  update public.players p
-  set active = is_active
-  where p.id = player_id
-    and p.team_id = target_team_id;
 
   return query
   select lp.id, lp.shirt_number, lp.name, lp.role, lp.active

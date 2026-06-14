@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const roleLabel = {
@@ -7,7 +7,20 @@ const roleLabel = {
   member: "Medlem"
 };
 
-export default function TeamAdminPanel({ open, team, currentUser, onClose, onToast, onPlayersChanged, onConfirm }) {
+const normalizeNameKey = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const playerShirtNumber = (player) => {
+  const number = Number(player?.shirtNumber ?? player?.nr ?? player?.shirt_number);
+  return Number.isFinite(number) ? number : "";
+};
+
+export default function TeamAdminPanel({ open, team, currentUser, onClose, onToast, onPlayersChanged, onConfirm, matches = [] }) {
   const [tab, setTab] = useState("players");
   const [members, setMembers] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -211,6 +224,95 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
 
   const resetPlayerForm = () => {
     setPlayerForm({ id: null, shirtNumber: "", name: "", role: "field" });
+  };
+
+  const playersFromMatches = useMemo(() => {
+    const existingNames = new Set((players || []).map((player) => normalizeNameKey(player.name)));
+    const candidates = new Map();
+
+    (matches || []).forEach((match) => {
+      (match.playerRoster || []).forEach((player) => {
+        const name = String(player?.name || "").trim();
+        const key = normalizeNameKey(name);
+        if (!key || existingNames.has(key)) return;
+
+        const shirtNumber = playerShirtNumber(player);
+        const current = candidates.get(key);
+        if (!current) {
+          candidates.set(key, {
+            name,
+            shirtNumber,
+            role: player.role === "goalkeeper" ? "goalkeeper" : "field",
+            appearances: 1
+          });
+          return;
+        }
+
+        current.appearances += 1;
+        if (!current.shirtNumber && shirtNumber) current.shirtNumber = shirtNumber;
+        if (player.role === "goalkeeper") current.role = "goalkeeper";
+      });
+    });
+
+    const sorted = [...candidates.values()].sort((left, right) => {
+      const leftNumber = Number(left.shirtNumber);
+      const rightNumber = Number(right.shirtNumber);
+      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && leftNumber !== rightNumber) {
+        return leftNumber - rightNumber;
+      }
+      return left.name.localeCompare(right.name, "sv");
+    });
+
+    const ready = [];
+    const conflicts = [];
+    sorted.forEach((player) => {
+      const numberKey = String(player.shirtNumber);
+      const validNumber = numberKey && Number.isFinite(Number(player.shirtNumber));
+      if (!validNumber) {
+        conflicts.push({ ...player, reason: "saknar nummer" });
+      } else {
+        ready.push(player);
+      }
+    });
+
+    return { ready, conflicts };
+  }, [matches, players]);
+
+  const missingPlayersFromMatches = playersFromMatches.ready;
+  const blockedPlayersFromMatches = playersFromMatches.conflicts;
+
+  const addMissingPlayersFromMatches = async () => {
+    if (missingPlayersFromMatches.length === 0) {
+      onToast?.("Inga saknade spelare hittades");
+      return;
+    }
+
+    setBusy(true);
+    setPlayerError("");
+
+    let latestPlayers = players;
+    for (const player of missingPlayersFromMatches) {
+      const { data, error: mutationError } = await supabase.rpc("upsert_team_player", {
+        target_team_id: team.onlineId,
+        player_id: null,
+        new_shirt_number: Number(player.shirtNumber),
+        player_name: player.name,
+        player_role: player.role
+      });
+
+      if (mutationError) {
+        setPlayerError(mutationError.message);
+        setBusy(false);
+        return;
+      }
+
+      latestPlayers = data || latestPlayers;
+    }
+
+    setPlayers(latestPlayers || []);
+    onPlayersChanged?.(latestPlayers || []);
+    setBusy(false);
+    onToast?.(`Lade till ${missingPlayersFromMatches.length} spelare från matcherna`);
   };
 
   const editPlayer = (player) => {
@@ -516,6 +618,52 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
                   </div>
                 </form>
               </section>
+
+              {(missingPlayersFromMatches.length > 0 || blockedPlayersFromMatches.length > 0) && (
+                <section className="mb-5 rounded-xl border border-sky-100 bg-sky-50 p-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        Spelare från importerade matcher
+                      </h3>
+                      <p className="text-sm text-slate-600">
+                        Namn som finns i matcherna men saknas i truppen.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy || playersLoading || missingPlayersFromMatches.length === 0}
+                      onClick={addMissingPlayersFromMatches}
+                      className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Lägg till {missingPlayersFromMatches.length}
+                    </button>
+                  </div>
+
+                  {missingPlayersFromMatches.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {missingPlayersFromMatches.map((player) => (
+                        <span
+                          key={`${player.name}-${player.shirtNumber}`}
+                          className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-sky-100"
+                        >
+                          #{player.shirtNumber} {player.name}
+                          {player.role === "goalkeeper" ? " (MV)" : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {blockedPlayersFromMatches.length > 0 && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      Behöver kollas manuellt:{" "}
+                      {blockedPlayersFromMatches
+                        .map((player) => `#${player.shirtNumber || "?"} ${player.name} (${player.reason})`)
+                        .join(", ")}
+                    </div>
+                  )}
+                </section>
+              )}
 
               <section className="mb-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
