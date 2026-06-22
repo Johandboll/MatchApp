@@ -37,7 +37,9 @@ export default function SeasonCenter({
   const [seasonScope, setSeasonScope] = useState("all");
   const [matchDeleteMode, setMatchDeleteMode] = useState(false);
   const [selectedMatchIdsForDelete, setSelectedMatchIdsForDelete] = useState([]);
+  const [seasonToolsOpen, setSeasonToolsOpen] = useState(false);
   const importInputRef = useRef(null);
+  const seasonToolsRef = useRef(null);
 
   useEffect(() => {
     if (!open) {
@@ -53,8 +55,26 @@ export default function SeasonCenter({
       setSeasonScope("all");
       setMatchDeleteMode(false);
       setSelectedMatchIdsForDelete([]);
+      setSeasonToolsOpen(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!seasonToolsOpen) return undefined;
+
+    const closeTools = (event) => {
+      if (event.key === "Escape" || !seasonToolsRef.current?.contains(event.target)) {
+        setSeasonToolsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeTools);
+    document.addEventListener("keydown", closeTools);
+    return () => {
+      document.removeEventListener("pointerdown", closeTools);
+      document.removeEventListener("keydown", closeTools);
+    };
+  }, [seasonToolsOpen]);
 
   // Normalize string: lowercase, trim, collapse spaces, remove accents/diacritics
   const norm = (v) =>
@@ -167,12 +187,26 @@ export default function SeasonCenter({
     const strongestDefense = [...matchRows].sort((a, b) => a.oppGoals - b.oppGoals || b.diff - a.diff)[0] || null;
     const mostGoals = [...matchRows].sort((a, b) => b.ourGoals - a.ourGoals || b.diff - a.diff)[0] || null;
     const avgGoals = matchRows.length > 0 ? Math.round((matchRows.reduce((sum, row) => sum + row.ourGoals, 0) / matchRows.length) * 10) / 10 : 0;
+    const avgConceded = matchRows.length > 0 ? Math.round((matchRows.reduce((sum, row) => sum + row.oppGoals, 0) / matchRows.length) * 10) / 10 : 0;
+    const wins = matchRows.filter((row) => row.diff > 0).length;
+    const draws = matchRows.filter((row) => row.diff === 0).length;
+    const losses = matchRows.filter((row) => row.diff < 0).length;
+    const goalDiff = matchRows.reduce((sum, row) => sum + row.diff, 0);
+    const recentMatches = [...matchRows]
+      .sort((a, b) => String(b.match?.matchInfo?.date || "").localeCompare(String(a.match?.matchInfo?.date || ""), "sv"))
+      .slice(0, 3);
 
     return {
       bestMatch,
       strongestDefense,
       mostGoals,
-      avgGoals
+      avgGoals,
+      avgConceded,
+      wins,
+      draws,
+      losses,
+      goalDiff,
+      recentMatches
     };
   }, [scopedMatches]);
 
@@ -244,23 +278,106 @@ export default function SeasonCenter({
 
   return (
     <div className="season-center-shell fixed inset-0 z-50 flex flex-col overflow-hidden bg-slate-50">
-      <div className="shrink-0 bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500">MatchApp – Säsongscenter</div>
-            <div className="text-lg font-extrabold truncate">
-              {selectedTeam?.name ? `Säsong: ${selectedTeam.name}` : "Säsong"}
+      <div className="shrink-0 border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-slate-500">Säsongscenter</div>
+              <h1 className="truncate text-xl font-extrabold text-slate-900">
+                {selectedTeam?.name || "Valt lag"}
+              </h1>
             </div>
-            <div className="text-xs text-slate-500">
-              {selectedSeason || "Alla säsonger"} • Matcher: {scopedSeasonKpis.matchCount} • Mål: {scopedSeasonKpis.ourGoals} • Insläppta:{" "}
-              {scopedSeasonKpis.oppGoals}
+
+            <div className="flex shrink-0 items-center gap-2">
+              {onImportBackup && (
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold"
+              >
+                Tillbaka
+              </button>
+
+              <div ref={seasonToolsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSeasonToolsOpen((value) => !value)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl font-bold leading-none text-slate-600 hover:bg-slate-100"
+                  aria-label="Import och backup"
+                  aria-haspopup="menu"
+                  aria-expanded={seasonToolsOpen}
+                  title="Import och backup"
+                >
+                  ⋯
+                </button>
+
+                {seasonToolsOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-11 z-20 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
+                  >
+                    {onImportBackup && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setSeasonToolsOpen(false);
+                          importInputRef.current?.click();
+                        }}
+                        className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        Importera JSON
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setSeasonToolsOpen(false);
+                        onExportBackup();
+                      }}
+                      className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      Ladda ner backup
+                    </button>
+                    {canManageSeason && (
+                      <div className="mt-1 border-t border-slate-200 pt-1">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setSeasonToolsOpen(false);
+                            setSeasonDangerOpen(true);
+                            setSeasonDangerText("");
+                          }}
+                          className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50"
+                        >
+                          Rensa säsong
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
+          </div>
+
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
               {onSeasonChange && (
                 <select
                   value={selectedSeason || ""}
                   onChange={(e) => onSeasonChange(e.target.value)}
-                  className="border rounded-xl px-3 py-2 text-sm bg-white"
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
                   title="Välj säsong"
                 >
                   {seasonOptions.map((season) => (
@@ -273,7 +390,7 @@ export default function SeasonCenter({
               <select
                 value={seasonScope}
                 onChange={(e) => setSeasonScope(e.target.value)}
-                className="border rounded-xl px-3 py-2 text-sm bg-white"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
               >
                 {scopeOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -282,55 +399,45 @@ export default function SeasonCenter({
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {onImportBackup && (
-              <>
-                <input
-                  ref={importInputRef}
-                  type="file"
-                  accept="application/json,.json"
-                  className="hidden"
-                  onChange={handleImportFile}
-                />
-                <button
-                  type="button"
-                  onClick={() => importInputRef.current?.click()}
-                  className="px-3 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-sm font-semibold"
-                  title="Importera säsong från JSON"
-                >
-                  Importera
-                </button>
-              </>
-            )}
-
-            <button
-              type="button"
-              onClick={onExportBackup}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold"
-              title="Ladda ner säsong som JSON"
-            >
-              ⬇️ Backup
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold"
-            >
-              Tillbaka
-            </button>
+            <dl className="grid grid-cols-3 divide-x divide-slate-200 rounded-lg border border-slate-200 bg-slate-50">
+              <div className="min-w-[5rem] px-3 py-1.5 text-center">
+                <dt className="text-[11px] font-medium text-slate-500">Matcher</dt>
+                <dd className="text-base font-extrabold leading-tight tabular-nums text-slate-900">
+                  {scopedSeasonKpis.matchCount}
+                </dd>
+              </div>
+              <div className="min-w-[5rem] px-3 py-1.5 text-center">
+                <dt className="text-[11px] font-medium text-slate-500">Mål</dt>
+                <dd className="text-base font-extrabold leading-tight tabular-nums text-slate-900">
+                  {scopedSeasonKpis.ourGoals}
+                </dd>
+              </div>
+              <div className="min-w-[5rem] px-3 py-1.5 text-center">
+                <dt className="text-[11px] font-medium text-slate-500">Insläppta</dt>
+                <dd className="text-base font-extrabold leading-tight tabular-nums text-slate-900">
+                  {scopedSeasonKpis.oppGoals}
+                </dd>
+              </div>
+            </dl>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 pb-3">
-          <div className="inline-flex rounded-2xl bg-slate-100 p-1">
+        <div className="mx-auto max-w-7xl px-4 pt-1">
+          <div
+            className="grid h-11 w-full grid-cols-3 sm:w-96"
+            role="tablist"
+            aria-label="Säsongsvyer"
+          >
             <button
               type="button"
               onClick={() => setSeasonTab("overview")}
-              className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
-                seasonTab === "overview" ? "bg-white shadow" : "text-slate-700"
+              role="tab"
+              aria-selected={seasonTab === "overview"}
+              className={`relative h-11 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full ${
+                seasonTab === "overview"
+                  ? "text-slate-950 after:bg-sky-600"
+                  : "text-slate-500 after:bg-transparent hover:text-slate-800"
               }`}
             >
               Översikt
@@ -338,8 +445,12 @@ export default function SeasonCenter({
             <button
               type="button"
               onClick={() => setSeasonTab("players")}
-              className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
-                seasonTab === "players" ? "bg-white shadow" : "text-slate-700"
+              role="tab"
+              aria-selected={seasonTab === "players"}
+              className={`relative h-11 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full ${
+                seasonTab === "players"
+                  ? "text-slate-950 after:bg-sky-600"
+                  : "text-slate-500 after:bg-transparent hover:text-slate-800"
               }`}
             >
               Spelare
@@ -347,8 +458,12 @@ export default function SeasonCenter({
             <button
               type="button"
               onClick={() => setSeasonTab("matches")}
-              className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
-                seasonTab === "matches" ? "bg-white shadow" : "text-slate-700"
+              role="tab"
+              aria-selected={seasonTab === "matches"}
+              className={`relative h-11 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full ${
+                seasonTab === "matches"
+                  ? "text-slate-950 after:bg-sky-600"
+                  : "text-slate-500 after:bg-transparent hover:text-slate-800"
               }`}
             >
               Matcher
@@ -360,88 +475,106 @@ export default function SeasonCenter({
       <div className="season-center-scroll w-full max-w-7xl mx-auto px-4 py-4">
         {seasonTab === "overview" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-white border rounded-2xl p-4">
-                <div className="text-xs text-slate-500">Matcher</div>
-                <div className="text-3xl font-extrabold">{scopedSeasonKpis.matchCount}</div>
+            <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <h2 className="text-sm font-bold text-slate-900">Säsongsresultat</h2>
+                <p className="text-xs text-slate-500">Resultat för valt matchfilter</p>
               </div>
-              <div className="bg-white border rounded-2xl p-4">
-                <div className="text-xs text-slate-500">Mål (för)</div>
-                <div className="text-3xl font-extrabold">{scopedSeasonKpis.ourGoals}</div>
-              </div>
-              <div className="bg-white border rounded-2xl p-4">
-                <div className="text-xs text-slate-500">Snitt mål / match</div>
-                <div className="text-3xl font-extrabold">{overviewHighlights.avgGoals}</div>
-              </div>
-            </div>
+              <dl className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 sm:divide-y-0">
+                <div className="px-4 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Vinster</dt>
+                  <dd className="mt-1 text-2xl font-extrabold tabular-nums text-emerald-700">{overviewHighlights.wins}</dd>
+                </div>
+                <div className="px-4 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Oavgjorda</dt>
+                  <dd className="mt-1 text-2xl font-extrabold tabular-nums text-slate-800">{overviewHighlights.draws}</dd>
+                </div>
+                <div className="px-4 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Förluster</dt>
+                  <dd className="mt-1 text-2xl font-extrabold tabular-nums text-rose-700">{overviewHighlights.losses}</dd>
+                </div>
+                <div className="px-4 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Målskillnad</dt>
+                  <dd className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
+                    {overviewHighlights.goalDiff > 0 ? "+" : ""}{overviewHighlights.goalDiff}
+                  </dd>
+                </div>
+              </dl>
+            </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-white border rounded-2xl p-4">
-                <div className="text-sm font-semibold mb-2">⭐ Bästa match</div>
-                {overviewHighlights.bestMatch ? (
-                  <>
-                    <div className="font-semibold truncate">{overviewHighlights.bestMatch.label}</div>
-                    <div className="text-xs text-slate-500">{overviewHighlights.bestMatch.meta}</div>
-                    <div className="text-2xl font-extrabold mt-2">{overviewHighlights.bestMatch.score}</div>
-                    <div className="text-xs text-slate-500 mt-1">Målskillnad: +{overviewHighlights.bestMatch.diff}</div>
-                  </>
-                ) : (
-                  <div className="text-sm text-slate-500">Inga data ännu.</div>
-                )}
-              </div>
-
-              <div className="bg-white border rounded-2xl p-4">
-                <div className="text-sm font-semibold mb-2">🧱 Starkaste försvar</div>
-                {overviewHighlights.strongestDefense ? (
-                  <>
-                    <div className="font-semibold truncate">{overviewHighlights.strongestDefense.label}</div>
-                    <div className="text-xs text-slate-500">{overviewHighlights.strongestDefense.meta}</div>
-                    <div className="text-2xl font-extrabold mt-2">{overviewHighlights.strongestDefense.score}</div>
-                    <div className="text-xs text-slate-500 mt-1">Insläppta mål: {overviewHighlights.strongestDefense.oppGoals}</div>
-                  </>
-                ) : (
-                  <div className="text-sm text-slate-500">Inga data ännu.</div>
-                )}
-              </div>
-
-              <div className="bg-white border rounded-2xl p-4">
-                <div className="text-sm font-semibold mb-2">🚀 Mest mål i match</div>
-                {overviewHighlights.mostGoals ? (
-                  <>
-                    <div className="font-semibold truncate">{overviewHighlights.mostGoals.label}</div>
-                    <div className="text-xs text-slate-500">{overviewHighlights.mostGoals.meta}</div>
-                    <div className="text-2xl font-extrabold mt-2">{overviewHighlights.mostGoals.ourGoals}</div>
-                    <div className="text-xs text-slate-500 mt-1">Resultat: {overviewHighlights.mostGoals.score}</div>
-                  </>
-                ) : (
-                  <div className="text-sm text-slate-500">Inga data ännu.</div>
-                )}
-              </div>
-            </div>
-
-            {canManageSeason ? (
-            <div className="bg-white border border-red-100 rounded-2xl p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-sm font-bold text-red-700">Farlig åtgärd</div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    Rensa tar bort alla sparade matcher för valt lag.
+            <div className="grid gap-4 md:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+              <section className="rounded-lg border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-bold text-slate-900">Mål per match</h2>
+                <div className="mt-4 grid grid-cols-2 divide-x divide-slate-200">
+                  <div className="pr-4">
+                    <div className="text-xs font-medium text-slate-500">Gjorda</div>
+                    <div className="mt-1 text-3xl font-extrabold tabular-nums text-slate-900">{overviewHighlights.avgGoals}</div>
+                  </div>
+                  <div className="pl-4">
+                    <div className="text-xs font-medium text-slate-500">Insläppta</div>
+                    <div className="mt-1 text-3xl font-extrabold tabular-nums text-slate-900">{overviewHighlights.avgConceded}</div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSeasonDangerOpen(true);
-                    setSeasonDangerText("");
-                  }}
-                  className="self-start rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 sm:self-auto"
-                  title="Rensa säsong"
-                >
-                  Rensa säsong
-                </button>
-              </div>
+              </section>
+
+              <section className="rounded-lg border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-bold text-slate-900">Senaste matcher</h2>
+                {overviewHighlights.recentMatches.length > 0 ? (
+                  <div className="mt-2 divide-y divide-slate-100">
+                    {overviewHighlights.recentMatches.map((row) => (
+                      <div key={row.match.id || `${row.meta}-${row.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2.5">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-800">{row.label}</div>
+                          <div className="text-xs text-slate-500">{row.meta}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold ${
+                            row.diff > 0 ? "text-emerald-700" : row.diff < 0 ? "text-rose-700" : "text-slate-500"
+                          }`}>
+                            {row.diff > 0 ? "Vinst" : row.diff < 0 ? "Förlust" : "Oavgjort"}
+                          </span>
+                          <span className="min-w-[3.5rem] text-right text-lg font-extrabold tabular-nums text-slate-900">{row.score}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                    Inga matcher finns i det valda urvalet ännu.
+                  </div>
+                )}
+              </section>
             </div>
-            ) : (
+
+            {overviewHighlights.bestMatch && (
+              <section>
+                <h2 className="mb-2 text-sm font-bold text-slate-700">Säsongens höjdpunkter</h2>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="text-xs font-semibold text-slate-500">Bästa resultat</div>
+                    <div className="mt-2 truncate font-semibold text-slate-800">{overviewHighlights.bestMatch.label}</div>
+                    <div className="text-xs text-slate-500">{overviewHighlights.bestMatch.meta}</div>
+                    <div className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900">{overviewHighlights.bestMatch.score}</div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="text-xs font-semibold text-slate-500">Starkaste försvar</div>
+                    <div className="mt-2 truncate font-semibold text-slate-800">{overviewHighlights.strongestDefense.label}</div>
+                    <div className="text-xs text-slate-500">{overviewHighlights.strongestDefense.meta}</div>
+                    <div className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900">{overviewHighlights.strongestDefense.score}</div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="text-xs font-semibold text-slate-500">Flest gjorda mål</div>
+                    <div className="mt-2 truncate font-semibold text-slate-800">{overviewHighlights.mostGoals.label}</div>
+                    <div className="text-xs text-slate-500">{overviewHighlights.mostGoals.meta}</div>
+                    <div className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900">{overviewHighlights.mostGoals.ourGoals}</div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {!canManageSeason && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-bold text-slate-700">Begränsad behörighet</div>
                 <div className="mt-1 text-sm text-slate-500">
