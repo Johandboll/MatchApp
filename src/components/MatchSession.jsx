@@ -12,6 +12,7 @@ export default function MatchSession({
   undoLast,
   onReset,
   matchInfo,
+  selectedTeam,
   liveHome,
   liveAway,
   cupLabel,
@@ -47,21 +48,12 @@ export default function MatchSession({
         undoLast={undoLast}
         onReset={onReset}
         matchInfo={matchInfo}
+        selectedTeam={selectedTeam}
         liveHome={liveHome}
         liveAway={liveAway}
         cupLabel={cupLabel}
+        onOpenLog={() => setLogOpen(true)}
       />
-
-
-      <button
-        type="button"
-        onClick={() => setLogOpen(true)}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-50 bg-white/90 border border-black/20 shadow px-3 py-4 rounded-l-2xl text-sm font-semibold"
-        style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-        aria-label="Öppna händelselogg"
-      >
-        Händelselogg
-      </button>
 
       {logOpen && (
         <button

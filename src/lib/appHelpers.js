@@ -144,11 +144,54 @@ export const getPlayerStats = (statsMap, player) => {
   );
 };
 
-export const buildMatchStatRow = (player, statsMap) => {
+export const normalizeLegacyGoalkeeperStats = (player, stats, history = []) => {
+  if (player?.role !== "goalkeeper" || !Array.isArray(history) || history.length === 0) return stats || {};
+
+  const legacyCounts = history.reduce(
+    (acc, item) => {
+      const matchesRef = (ref) =>
+        ref !== undefined && ref !== null && ref !== "" && playerMatchesRef(player, ref);
+      if (!matchesRef(item?.playerId) && !matchesRef(item?.nr)) return acc;
+      const half = item?.half || 1;
+      if (!acc.byHalf[half]) acc.byHalf[half] = { goal: 0, save: 0 };
+      if (item?.type === "sevenGoal" && item?.alsoType === "goal") {
+        acc.goal += 1;
+        acc.byHalf[half].goal += 1;
+      }
+      if (item?.type === "sevenMiss" && item?.alsoType === "save") {
+        acc.save += 1;
+        acc.byHalf[half].save += 1;
+      }
+      return acc;
+    },
+    { goal: 0, save: 0, byHalf: {} }
+  );
+
+  if (!legacyCounts.goal && !legacyCounts.save) return stats || {};
+
+  const nextByHalf = { ...(stats?.byHalf || {}) };
+  Object.entries(legacyCounts.byHalf).forEach(([half, counts]) => {
+    const halfStats = nextByHalf[half] || {};
+    nextByHalf[half] = {
+      ...halfStats,
+      goal: Math.max(0, n(halfStats.goal) - counts.goal),
+      save: Math.max(0, n(halfStats.save) - counts.save)
+    };
+  });
+
+  return {
+    ...(stats || {}),
+    goal: Math.max(0, n(stats?.goal) - legacyCounts.goal),
+    save: Math.max(0, n(stats?.save) - legacyCounts.save),
+    byHalf: nextByHalf
+  };
+};
+
+export const buildMatchStatRow = (player, statsMap, options = {}) => {
   const playerId = getPlayerId(player);
   const shirtNumber = getPlayerShirtNumber(player);
-  const stats = getPlayerStats(statsMap, player);
   const isGoalkeeper = player?.role === "goalkeeper";
+  const stats = normalizeLegacyGoalkeeperStats(player, getPlayerStats(statsMap, player), options.history);
 
   const goal = n(stats.goal);
   const save = n(stats.save);
@@ -222,7 +265,10 @@ export const emptyCounters = () => ({
 });
 
 export const eventLabel = (type, player) => {
-  if (player?.role === "goalkeeper" && type === "goal") return "Insläppt";
+  if (player?.role === "goalkeeper" && type === "goal") return "Insl. spel";
+  if (player?.role === "goalkeeper" && type === "save") return "Rädd spel";
+  if (player?.role === "goalkeeper" && type === "sevenGoal") return "7m insläppt";
+  if (player?.role === "goalkeeper" && type === "sevenMiss") return "7m rädd";
 
   switch (type) {
     case "goal":
@@ -416,7 +462,7 @@ export const buildSeasonSummary = (matches, teamsData) => {
       const row = getRow(player);
       row.matches += 1;
 
-      const matchRow = buildMatchStatRow(player, statsObj);
+      const matchRow = buildMatchStatRow(player, statsObj, { history: match.history || [] });
 
       row.goal += matchRow.goal;
       row.save += matchRow.save;

@@ -4,9 +4,16 @@ export default function TopBar({
   currentHalf, setCurrentHalf,
   viewMode, setViewMode,
   undoLast, onReset,
-  matchInfo, liveHome, liveAway,
-  cupLabel
+  matchInfo, selectedTeam, liveHome, liveAway,
+  cupLabel,
+  onOpenLog
 }) {
+  const ourTeamName = selectedTeam?.name || "Vi";
+  const opponentName = matchInfo?.opponent || "Mot";
+  const isAway = (matchInfo?.location || "") === "Borta";
+  const homeLabel = isAway ? opponentName : ourTeamName;
+  const awayLabel = isAway ? ourTeamName : opponentName;
+
   return (
     <>
       {/* Toppresultat */}
@@ -34,11 +41,22 @@ export default function TopBar({
           </div>
         </div>
 
-        <div className="mt-2 w-full bg-gray-100 rounded-2xl p-3 flex items-center justify-center shadow">
-          <div className="text-2xl font-bold tracking-wide">
-            Resultat: <span className="text-green-700">{liveHome}</span> – <span className="text-red-700">{liveAway}</span>
+        <div className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 text-slate-900">
+            <div className="truncate text-right text-sm font-bold text-slate-700 sm:text-base">
+              {homeLabel}
+            </div>
+            <div className="flex min-w-[6.5rem] items-center justify-center gap-2 tabular-nums">
+              <span className="w-8 text-right text-3xl font-extrabold leading-none">{liveHome}</span>
+              <span className="text-2xl font-bold leading-none text-slate-400">–</span>
+              <span className="w-8 text-left text-3xl font-extrabold leading-none">{liveAway}</span>
+            </div>
+            <div className="truncate text-left text-sm font-bold text-slate-700 sm:text-base">
+              {awayLabel}
+            </div>
           </div>
         </div>
+
       </div>
 
       {/* Vy-väljare + toppknappar */}
@@ -59,6 +77,7 @@ export default function TopBar({
         </div>
 
         <div className="flex gap-2 flex-wrap ml-auto">
+          <button onClick={onOpenLog} className="bg-slate-800 text-white px-4 py-2 rounded-xl">Händelser</button>
           <button onClick={undoLast} className="bg-red-500 text-white px-4 py-2 rounded-xl">Ångra senaste</button>
           <button onClick={onReset} className="bg-yellow-500 text-white px-4 py-2 rounded-xl">Avsluta match</button>
         </div>

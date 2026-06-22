@@ -509,12 +509,6 @@ export default function App() {
       ensurePlayerStats(nr);
 
       const player = findPlayerByRef(nr);
-      const isGoalkeeper = player?.role === "goalkeeper";
-
-      let alsoType = null;
-      if (isGoalkeeper && type === "sevenGoal") alsoType = "goal";
-      if (isGoalkeeper && type === "sevenMiss") alsoType = "save";
-
       setStats((prev) => {
         const playerStats = prev[nr] || {
           ...emptyCounters(),
@@ -532,17 +526,6 @@ export default function App() {
           }
         };
 
-        if (alsoType) {
-          next = {
-            ...next,
-            ...incOne(next, alsoType),
-            byHalf: {
-              ...next.byHalf,
-              [currentHalf]: incOne(next.byHalf[currentHalf] || {}, alsoType)
-            }
-          };
-        }
-
         return { ...prev, [nr]: next };
       });
 
@@ -554,7 +537,6 @@ export default function App() {
           playerId: getPlayerId(player),
           nr: getPlayerShirtNumber(player),
           type,
-          alsoType,
           half: currentHalf
         }
       ]);
@@ -675,7 +657,7 @@ export default function App() {
         if (!player) return;
 
         if (player.role === "goalkeeper") {
-          oppGoals += playerStats.goal || 0;
+          oppGoals += (playerStats.goal || 0) + (playerStats.sevenGoal || 0);
           ourGoals += playerStats.gkScored || 0;
         } else {
           ourGoals += (playerStats.goal || 0) + (playerStats.sevenGoal || 0);
@@ -900,7 +882,8 @@ export default function App() {
         cupPhase: savedMatch.cupPhase || "",
         allPlayers: roster,
         selectedPlayers: roster.map((player) => player.playerId ?? player.id ?? player.nr),
-        stats: savedMatch.stats || {}
+        stats: savedMatch.stats || {},
+        history: savedMatch.history || []
       });
       return;
     }
@@ -913,9 +896,10 @@ export default function App() {
       cupPhase,
       allPlayers,
       selectedPlayers,
-      stats
+      stats,
+      history
     });
-  }, [allPlayers, cupEnabled, cupName, cupPanelOpen, cupPhase, matchInfo, selectedPlayers, stats]);
+  }, [allPlayers, cupEnabled, cupName, cupPanelOpen, cupPhase, history, matchInfo, selectedPlayers, stats]);
 
   const handleDeleteSeasonMatch = useCallback(
     async (matchId) => {
@@ -1188,7 +1172,7 @@ export default function App() {
       if (!player) return;
 
       if (player.role === "goalkeeper") {
-        opp += playerStats.goal || 0;
+        opp += (playerStats.goal || 0) + (playerStats.sevenGoal || 0);
         our += playerStats.gkScored || 0;
       } else {
         our += (playerStats.goal || 0) + (playerStats.sevenGoal || 0);
@@ -1362,6 +1346,7 @@ export default function App() {
           undoLast={undoLast}
           onReset={confirmReset}
           matchInfo={matchInfo}
+          selectedTeam={selectedTeam}
           liveHome={topbarLiveHome}
           liveAway={topbarLiveAway}
           cupLabel={cupLabel}

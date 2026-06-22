@@ -1,5 +1,11 @@
 import * as XLSX from "xlsx";
-import { emptyCounters, getPlayerId, getPlayerShirtNumber, getPlayerStats } from "./appHelpers";
+import {
+  emptyCounters,
+  getPlayerId,
+  getPlayerShirtNumber,
+  getPlayerStats,
+  normalizeLegacyGoalkeeperStats
+} from "./appHelpers";
 
 export async function exportMatchExcel({
   matchInfo,
@@ -9,7 +15,8 @@ export async function exportMatchExcel({
   cupPhase,
   allPlayers,
   selectedPlayers,
-  stats
+  stats,
+  history = []
 }) {
   const headers = [
     "Nummer",
@@ -59,18 +66,22 @@ export async function exportMatchExcel({
       const player = findPlayerByRef(playerRef);
       if (!player) return;
 
-      const playerStats = getPlayerStats(stats, player) || {
+      const rawPlayerStats = getPlayerStats(stats, player) || {
         ...emptyCounters(),
         byHalf: { 1: emptyCounters(), 2: emptyCounters() }
       };
+      const playerStats =
+        player?.role === "goalkeeper"
+          ? normalizeLegacyGoalkeeperStats(player, rawPlayerStats, history)
+          : rawPlayerStats;
       const usedStats = half ? getHalfCounters(playerStats, half) : playerStats;
       const shirtNumber = getPlayerShirtNumber(player) ?? player.nr;
 
       if (player?.role === "goalkeeper") {
         homeGoals += usedStats.gkScored || 0;
-        awayGoals += usedStats.goal || 0;
+        awayGoals += (usedStats.goal || 0) + (usedStats.sevenGoal || 0);
         const savesTotal = (usedStats.save || 0) + (usedStats.sevenMiss || 0);
-        const shotsFaced = (usedStats.goal || 0) + savesTotal;
+        const shotsFaced = (usedStats.goal || 0) + (usedStats.sevenGoal || 0) + savesTotal;
         const savePct =
           shotsFaced > 0 ? `${((savesTotal / shotsFaced) * 100).toFixed(1)}%` : "";
 

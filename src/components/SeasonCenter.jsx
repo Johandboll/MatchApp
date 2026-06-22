@@ -81,7 +81,7 @@ export default function SeasonCenter({
 
   const getMatchQuickStats = (match) => {
     const roster = Array.isArray(match?.playerRoster) ? match.playerRoster : [];
-    const rows = roster.map((player) => buildMatchStatRow(player, match?.stats || {}));
+    const rows = roster.map((player) => buildMatchStatRow(player, match?.stats || {}, { history: match?.history || [] }));
     const fieldRows = rows.filter((row) => !row.isGoalkeeper);
     const goalkeeperRows = rows.filter((row) => row.isGoalkeeper);
 
@@ -869,7 +869,8 @@ export default function SeasonCenter({
                   const player = getPlayerFromMatch(m);
                   const row = buildMatchStatRow(
                     { ...player, role: isGk ? "goalkeeper" : "field" },
-                    m?.stats || {}
+                    m?.stats || {},
+                    { history: m?.history || [] }
                   );
 
                   return {
@@ -1268,7 +1269,8 @@ export default function SeasonCenter({
                 const isGoalkeeper = isGoalkeeperForMatch(p);
                 const row = buildMatchStatRow(
                   { ...p, role: isGoalkeeper ? "goalkeeper" : "field" },
-                  statsMap
+                  statsMap,
+                  { history: seasonMatchDetail?.history || [] }
                 );
 
                 return {
