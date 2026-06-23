@@ -65,12 +65,15 @@ export function getSeasonStartYear(season) {
   return Number.isFinite(year) ? year : 0;
 }
 
-export function buildSeasonOptions(selectedSeason = getDefaultSeason()) {
-  const startYear = getSeasonStartYear(selectedSeason) || getSeasonStartYear(getDefaultSeason());
-  return [-1, 0, 1, 2]
-    .map((offset) => startYear + offset)
-    .filter((year) => year >= 2025)
-    .map((year) => `${year}/${year + 1}`);
+export function buildSeasonOptions(date = new Date()) {
+  const currentStartYear = getSeasonStartYear(getDefaultSeason(date));
+  const firstStartYear = 2025;
+  const seasonCount = Math.max(1, currentStartYear - firstStartYear + 1);
+
+  return Array.from({ length: seasonCount }, (_, index) => {
+    const year = firstStartYear + index;
+    return `${year}/${year + 1}`;
+  });
 }
 
 const firstPresent = (...values) =>

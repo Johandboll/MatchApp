@@ -12,6 +12,77 @@ const comparePlayerNames = (a, b) =>
 
 const percentageValue = (value) => Number.parseFloat(String(value || "0").replace("%", "")) || 0;
 
+function SeasonDropdown({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const selectedOption = options.find((option) => option.value === value) || options[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const closeDropdown = (event) => {
+      if (event.type === "keydown" && event.key !== "Escape") return;
+      if (event.type === "click" && dropdownRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+
+    document.addEventListener("click", closeDropdown);
+    document.addEventListener("keydown", closeDropdown);
+    return () => {
+      document.removeEventListener("click", closeDropdown);
+      document.removeEventListener("keydown", closeDropdown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`flex h-10 min-w-36 items-center justify-between gap-3 rounded-lg border bg-white px-3 text-sm font-semibold text-slate-800 ${
+          open ? "border-sky-500 ring-2 ring-sky-100" : "border-slate-300 hover:border-slate-400"
+        }`}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span className="max-w-56 truncate">{selectedOption?.label || value}</span>
+        <span className={`text-xs text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true">▾</span>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label={label}
+          className="absolute left-0 top-11 z-30 max-h-72 min-w-full w-max max-w-xs overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl"
+        >
+          {options.map((option) => {
+            const selected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-4 rounded-md px-3 py-2 text-left text-sm font-semibold ${
+                  selected ? "bg-sky-50 text-sky-800" : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <span className="whitespace-nowrap">{option.label}</span>
+                <span className={`text-sky-700 ${selected ? "visible" : "invisible"}`} aria-hidden="true">✓</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SeasonCenter({
   open,
   selectedTeam,
@@ -446,30 +517,19 @@ export default function SeasonCenter({
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
               {onSeasonChange && (
-                <select
+                <SeasonDropdown
+                  label="Välj säsong"
                   value={selectedSeason || ""}
-                  onChange={(e) => onSeasonChange(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
-                  title="Välj säsong"
-                >
-                  {seasonOptions.map((season) => (
-                    <option key={season} value={season}>
-                      {season}
-                    </option>
-                  ))}
-                </select>
+                  options={seasonOptions.map((season) => ({ value: season, label: season }))}
+                  onChange={onSeasonChange}
+                />
               )}
-              <select
+              <SeasonDropdown
+                label="Välj matchfilter"
                 value={seasonScope}
-                onChange={(e) => setSeasonScope(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
-              >
-                {scopeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                options={scopeOptions}
+                onChange={setSeasonScope}
+              />
             </div>
 
             <dl className="grid grid-cols-3 divide-x divide-slate-200 rounded-lg border border-slate-200 bg-slate-50">
@@ -722,28 +782,28 @@ export default function SeasonCenter({
                 aria-label="Sök spelare"
                 className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
               />
-              <select
+              <SeasonDropdown
+                label="Sortera spelare"
                 value={seasonPlayerSort}
-                onChange={(e) => setSeasonPlayerSort(e.target.value)}
-                aria-label="Sortera spelare"
-                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
-              >
-                <option value="name">Namn A–Ö</option>
-                <option value="matches">Flest matcher</option>
-                {seasonPlayerGroup === "field" && (
-                  <>
-                    <option value="goals">Flest mål</option>
-                    <option value="assists">Flest assist</option>
-                    <option value="shotPct">Högst skottprocent</option>
-                  </>
-                )}
-                {seasonPlayerGroup === "goalkeepers" && (
-                  <>
-                    <option value="saves">Flest räddningar</option>
-                    <option value="savePct">Högst räddningsprocent</option>
-                  </>
-                )}
-              </select>
+                onChange={setSeasonPlayerSort}
+                options={[
+                  { value: "name", label: "Namn A–Ö" },
+                  { value: "matches", label: "Flest matcher" },
+                  ...(seasonPlayerGroup === "field"
+                    ? [
+                        { value: "goals", label: "Flest mål" },
+                        { value: "assists", label: "Flest assist" },
+                        { value: "shotPct", label: "Högst skottprocent" }
+                      ]
+                    : []),
+                  ...(seasonPlayerGroup === "goalkeepers"
+                    ? [
+                        { value: "saves", label: "Flest räddningar" },
+                        { value: "savePct", label: "Högst räddningsprocent" }
+                      ]
+                    : [])
+                ]}
+              />
             </div>
 
             {seasonPlayerGroup === "all" ? (
@@ -1028,6 +1088,7 @@ export default function SeasonCenter({
                 const roster = Array.isArray(m?.playerRoster) ? m.playerRoster : [];
                 return (
                   roster.find((p) => playerId && String(p?.playerId ?? p?.id ?? "") === playerId) ||
+                  roster.find((p) => playerName && norm(p?.name) === norm(playerName)) ||
                   roster.find((p) => playerNr && String(p?.nr ?? p?.shirtNumber ?? "").trim() === playerNr) ||
                   {
                     id: seasonPlayerDetail?.id,
@@ -1070,6 +1131,8 @@ export default function SeasonCenter({
                     gkScored: row.gkScored,
                     yellowCard: row.yellowCard,
                     redCard: row.redCard,
+                    assist: row.assist,
+                    turnover: row.turnover,
                     attempts: row.attempts,
                     shotPct: row.shotPct
                   };
@@ -1095,12 +1158,12 @@ export default function SeasonCenter({
                     const id = normKey(p?.playerId ?? p?.id);
                     return (
                       (playerId && id === normKey(playerId)) ||
-                      (playerNr && nr === normKey(playerNr)) ||
-                      (!playerId && !playerNr && playerName && name === normKey(playerName))
+                      (playerName && norm(name) === norm(playerName)) ||
+                      (!playerName && playerNr && nr === normKey(playerNr))
                     );
                   });
                 })
-                .sort((a, b) => String(a.date).localeCompare(String(b.date), "sv"));
+                .sort((a, b) => String(b.date).localeCompare(String(a.date), "sv"));
 
               const totals = playerMatchRows.reduce(
                 (acc, r) => {
@@ -1118,6 +1181,8 @@ export default function SeasonCenter({
                   acc.gkScored += r.gkScored;
                   acc.yellowCard += r.yellowCard;
                   acc.redCard += r.redCard;
+                  acc.assist += r.assist;
+                  acc.turnover += r.turnover;
                   acc.attempts += r.attempts;
                   return acc;
                 },
@@ -1136,194 +1201,152 @@ export default function SeasonCenter({
                   gkScored: 0,
                   yellowCard: 0,
                   redCard: 0,
+                  assist: 0,
+                  turnover: 0,
                   attempts: 0
                 }
               );
 
               const shotPct = pct(totals.totalGoals, totals.attempts);
               const gkPct = pct(totals.save, totals.save + totals.goal);
+              const primaryStats = isGk
+                ? [
+                    { label: "Matcher", value: totals.matches },
+                    { label: "Räddningar", value: totals.save },
+                    { label: "Insläppta", value: totals.goal },
+                    { label: "Rädd %", value: gkPct || "–" }
+                  ]
+                : [
+                    { label: "Matcher", value: totals.matches },
+                    { label: "Mål", value: totals.totalGoals },
+                    { label: "Assist", value: totals.assist },
+                    { label: "Skott %", value: shotPct || "–" }
+                  ];
+              const seasonDetailGroups = isGk
+                ? [
+                    {
+                      title: "Spel",
+                      items: [
+                        { label: "Räddningar", value: totals.saveOpen },
+                        { label: "Insläppta", value: totals.goalOpen }
+                      ]
+                    },
+                    {
+                      title: "7 meter",
+                      items: [
+                        { label: "Räddningar", value: totals.sevenMiss },
+                        { label: "Insläppta", value: totals.sevenGoal }
+                      ]
+                    },
+                    {
+                      title: "Övrigt",
+                      items: [
+                        { label: "MV-mål", value: totals.gkScored },
+                        { label: "Utvisningar", value: totals.suspension },
+                        { label: "Gult", value: totals.yellowCard },
+                        { label: "Rött", value: totals.redCard }
+                      ]
+                    }
+                  ]
+                : [
+                    {
+                      title: "Avslut",
+                      items: [
+                        { label: "Spelmål", value: totals.goalOpen },
+                        { label: "7m mål", value: totals.sevenGoal },
+                        { label: "7m miss", value: totals.sevenMiss },
+                        { label: "Räddade", value: totals.save },
+                        { label: "Utanför", value: totals.wide },
+                        { label: "Ribba", value: totals.post }
+                      ]
+                    },
+                    {
+                      title: "Spel och bestraffningar",
+                      items: [
+                        { label: "Tekniska fel", value: totals.turnover },
+                        { label: "Utvisningar", value: totals.suspension },
+                        { label: "Gult", value: totals.yellowCard },
+                        { label: "Rött", value: totals.redCard }
+                      ]
+                    }
+                  ];
 
               return (
-                <div className="mt-4 space-y-4">
-                  <div className="bg-slate-50 rounded-xl p-3 text-sm">
-                    <div>
-                      Matcher: <strong>{totals.matches}</strong>
-                    </div>
+                <div className="mt-4 space-y-5">
+                  <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {primaryStats.map((item) => (
+                      <div key={item.label} className="rounded-lg bg-slate-100 px-3 py-3">
+                        <dt className="text-xs font-semibold text-slate-500">{item.label}</dt>
+                        <dd className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">{item.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
 
-                    {isGk ? (
-                      <>
-                        <div>
-                          Totalt rädd: <strong>{totals.save}</strong>
-                        </div>
-                        <div>
-                          Rädd spel: <strong>{totals.saveOpen}</strong> • 7m rädd: <strong>{totals.sevenMiss}</strong>
-                        </div>
-                        <div>
-                          Totalt insläppt: <strong>{totals.goal}</strong>
-                        </div>
-                        <div>
-                          Insl. spel: <strong>{totals.goalOpen}</strong> • 7m insl: <strong>{totals.sevenGoal}</strong>
-                        </div>
-                        <div>
-                          Rädd%: <strong>{gkPct}</strong>
-                        </div>
-                        <div>
-                          Utvisningar: <strong>{totals.suspension}</strong>
-                        </div>
-                        <div>
-                          Gult: <strong>{totals.yellowCard}</strong> • Rött: <strong>{totals.redCard}</strong>
-                        </div>
-                        <div>
-                          MV mål: <strong>{totals.gkScored}</strong>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          Totalt mål: <strong>{totals.totalGoals}</strong>
-                        </div>
-                        <div>
-                          Avslut: <strong>{totals.attempts}</strong> • Skott%: <strong>{shotPct}</strong>
-                        </div>
-                        <div>
-                          Rädd: <strong>{totals.save}</strong> • Utanför: <strong>{totals.wide}</strong> • Ribba: <strong>{totals.post}</strong>
-                        </div>
-                        <div>
-                          7m mål: <strong>{totals.sevenGoal}</strong> • 7m miss: <strong>{totals.sevenMiss}</strong>
-                        </div>
-                        <div>
-                          Utvisningar: <strong>{totals.suspension}</strong>
-                        </div>
-                        <div>
-                          Gult: <strong>{totals.yellowCard}</strong> • Rött: <strong>{totals.redCard}</strong>
-                        </div>
-                      </>
-                    )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {seasonDetailGroups.map((group) => (
+                      <section key={group.title} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                        <h3 className="text-sm font-bold text-slate-800">{group.title}</h3>
+                        <dl className="mt-2 divide-y divide-slate-100">
+                          {group.items.map((item) => (
+                            <div key={item.label} className="flex items-center justify-between gap-4 py-2 text-sm">
+                              <dt className="text-slate-600">{item.label}</dt>
+                              <dd className="font-bold tabular-nums text-slate-900">{item.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </section>
+                    ))}
                   </div>
 
-                  <div>
-                    <div className="text-sm font-semibold mb-2">Per match (klicka för matchdetalj)</div>
-                    <div className="overflow-auto relative">
-                      <table className="w-full text-sm border">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th className="text-left p-2 border">Datum</th>
-                            <th className="text-left p-2 border">Motståndare</th>
-                            <th className="text-left p-2 border">H/B</th>
-                            <th className="text-right p-2 border">Resultat</th>
-                            {isGk ? (
-                              <>
-                                <th className="text-right p-2 border">Totalt rädd</th>
-                                <th className="text-right p-2 border">Rädd spel</th>
-                                <th className="text-right p-2 border">Totalt insl</th>
-                                <th className="text-right p-2 border">Insl. spel</th>
-                                <th className="text-right p-2 border">Rädd%</th>
-                                <th className="text-right p-2 border">Utvisn</th>
-                                <th className="text-right p-2 border">Gult</th>
-                                <th className="text-right p-2 border">Rött</th>
-                                <th className="text-right p-2 border">7m insl</th>
-                                <th className="text-right p-2 border">7m rädd</th>
-                                <th className="text-right p-2 border">MV mål</th>
-                              </>
-                            ) : (
-                              <>
-                                <th className="text-right p-2 border">Totalt mål</th>
-                                <th className="text-right p-2 border">Spelmål</th>
-                                <th className="text-right p-2 border">Rädd</th>
-                                <th className="text-right p-2 border">Utanför</th>
-                                <th className="text-right p-2 border">Ribba</th>
-                                <th className="text-right p-2 border">7m mål</th>
-                                <th className="text-right p-2 border">7m miss</th>
-                                <th className="text-right p-2 border">Utvisn</th>
-                                <th className="text-right p-2 border">Gult</th>
-                                <th className="text-right p-2 border">Rött</th>
-                                <th className="text-right p-2 border">Avslut</th>
-                                <th className="text-right p-2 border">Skott%</th>
-                              </>
-                            )}
-                            <th className="text-right p-2 border sticky right-0 bg-slate-50">Stat</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {playerMatchRows.map((r) => {
-                            const m = r.match;
-                            const gkP = pct(r.save, r.save + r.goal);
-                            return (
-                          <tr
-                            key={m.id}
+                  <section>
+                    <h3 className="mb-2 text-sm font-bold text-slate-800">Matcher</h3>
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+                      {playerMatchRows.map((r) => {
+                        const m = r.match;
+                        const gkP = pct(r.save, r.save + r.goal);
+                        return (
+                          <button
+                            key={m.id || `${r.date}-${r.opponent}`}
+                            type="button"
                             onClick={() => {
-                              // Flow A: open full match (all players)
-                              setSeasonPlayerDetail(null);
-                              setSeasonMatchPlayerFocus(null);
+                              setSeasonMatchPlayerFocus({
+                                id: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
+                                playerId: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
+                                nr: seasonPlayerDetail?.nr,
+                                name: seasonPlayerDetail?.name,
+                                type: seasonPlayerDetail?.type
+                              });
                               setSeasonMatchDetail(m);
                             }}
-                            className="cursor-pointer hover:bg-slate-50"
+                            className="grid w-full gap-3 px-3 py-3 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                           >
-                                <td className="p-2 border">{r.date || "-"}</td>
-                                <td className="p-2 border">{r.opponent || "-"}</td>
-                                <td className="p-2 border">{r.location || "-"}</td>
-                                <td className="p-2 border text-right">{r.score}</td>
-
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-bold text-slate-900">{r.opponent || "Okänd motståndare"}</div>
+                              <div className="mt-0.5 text-xs text-slate-500">{r.date || "–"} • {r.location || "–"}</div>
+                            </div>
+                            <div className="flex items-center justify-between gap-4 sm:justify-end">
+                              <div className="flex gap-4 text-center">
                                 {isGk ? (
                                   <>
-                                    <td className="p-2 border text-right">{r.save}</td>
-                                    <td className="p-2 border text-right">{r.saveOpen}</td>
-                                    <td className="p-2 border text-right">{r.goal}</td>
-                                    <td className="p-2 border text-right">{r.goalOpen}</td>
-                                    <td className="p-2 border text-right">{gkP}</td>
-                                    <td className="p-2 border text-right">{r.suspension}</td>
-                                    <td className="p-2 border text-right">{r.yellowCard}</td>
-                                    <td className="p-2 border text-right">{r.redCard}</td>
-                                    <td className="p-2 border text-right">{r.sevenGoal}</td>
-                                    <td className="p-2 border text-right">{r.sevenMiss}</td>
-                                    <td className="p-2 border text-right">{r.gkScored}</td>
+                                    <div><div className="text-[10px] font-semibold text-slate-500">Rädd</div><div className="text-sm font-bold tabular-nums">{r.save}</div></div>
+                                    <div><div className="text-[10px] font-semibold text-slate-500">Insl.</div><div className="text-sm font-bold tabular-nums">{r.goal}</div></div>
+                                    <div><div className="text-[10px] font-semibold text-slate-500">Rädd %</div><div className="text-sm font-bold tabular-nums">{gkP || "–"}</div></div>
                                   </>
                                 ) : (
                                   <>
-                                    <td className="p-2 border text-right">{r.totalGoals}</td>
-                                    <td className="p-2 border text-right">{r.goal}</td>
-                                    <td className="p-2 border text-right">{r.save}</td>
-                                    <td className="p-2 border text-right">{r.wide}</td>
-                                    <td className="p-2 border text-right">{r.post}</td>
-                                    <td className="p-2 border text-right">{r.sevenGoal}</td>
-                                    <td className="p-2 border text-right">{r.sevenMiss}</td>
-                                    <td className="p-2 border text-right">{r.suspension}</td>
-                                    <td className="p-2 border text-right">{r.yellowCard}</td>
-                                    <td className="p-2 border text-right">{r.redCard}</td>
-                                    <td className="p-2 border text-right">{r.attempts}</td>
-                                    <td className="p-2 border text-right">{r.shotPct}</td>
+                                    <div><div className="text-[10px] font-semibold text-slate-500">Mål</div><div className="text-sm font-bold tabular-nums">{r.totalGoals}</div></div>
+                                    <div><div className="text-[10px] font-semibold text-slate-500">Assist</div><div className="text-sm font-bold tabular-nums">{r.assist}</div></div>
+                                    <div><div className="text-[10px] font-semibold text-slate-500">Skott %</div><div className="text-sm font-bold tabular-nums">{r.shotPct || "–"}</div></div>
                                   </>
                                 )}
-                                <td className="p-2 border text-right min-w-[72px] sticky right-0 bg-white">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // Open same match directly in player focus
-                                      setSeasonPlayerDetail(null);
-                                      setSeasonMatchPlayerFocus({
-                                        id: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
-                                        playerId: seasonPlayerDetail?.playerId ?? seasonPlayerDetail?.id,
-                                        nr: seasonPlayerDetail?.nr,
-                                        name: seasonPlayerDetail?.name,
-                                        type: seasonPlayerDetail?.type
-                                      });
-                                      setSeasonMatchDetail(m);
-                                    }}
-                                    className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold w-full"
-                                    title="Visa spelarens matchstatistik"
-                                    aria-label="Visa spelarens matchstatistik"
-                                  >
-                                    Stat
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                              </div>
+                              <div className="min-w-[3.5rem] text-right text-xl font-extrabold tabular-nums text-slate-900">{r.score}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
+                  </section>
                 </div>
               );
             })()}
@@ -1340,7 +1363,7 @@ export default function SeasonCenter({
               setSeasonMatchDetail(null);
               setSeasonMatchPlayerFocus(null);
             }}
-            aria-label="Stäng"
+            aria-label={seasonPlayerDetail ? "Tillbaka" : "Stäng"}
           />
           <div className="relative bg-white w-full max-w-4xl rounded-2xl border shadow-2xl p-4 max-h-[85vh] overflow-auto">
             <div className="flex items-start justify-between gap-3">
@@ -1360,7 +1383,7 @@ export default function SeasonCenter({
               </div>
 
               <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                {onExportMatchExcel && (
+                {onExportMatchExcel && !seasonMatchPlayerFocus && (
                   <button
                     type="button"
                     onClick={() => onExportMatchExcel(seasonMatchDetail)}
@@ -1377,7 +1400,7 @@ export default function SeasonCenter({
                   }}
                   className="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold"
                 >
-                  Stäng
+                  {seasonPlayerDetail ? "Tillbaka" : "Stäng"}
                 </button>
               </div>
             </div>
@@ -1468,6 +1491,8 @@ export default function SeasonCenter({
                   gkScored: row.gkScored,
                   yellowCard: row.yellowCard,
                   redCard: row.redCard,
+                  assist: row.assist,
+                  turnover: row.turnover,
                   attempts: row.attempts,
                   isGoalkeeper,
                   gkConceded: row.gkConceded,
@@ -1483,7 +1508,12 @@ export default function SeasonCenter({
               const focusId = focusPlayerId != null ? String(focusPlayerId) : "";
 
               const matchFocusRow = focus
-                ? rows.find((r) => (focusId && String(r.playerId ?? r.id ?? "") === focusId) || `${normKey(r.nr)}|${normKey(r.name)}` === focusKey)
+                ? rows.find(
+                    (r) =>
+                      (focusId && String(r.playerId ?? r.id ?? "") === focusId) ||
+                      (focus?.name && norm(r.name) === norm(focus.name)) ||
+                      `${normKey(r.nr)}|${normKey(r.name)}` === focusKey
+                  )
                 : null;
 
               if (focus && matchFocusRow) {
@@ -1491,138 +1521,110 @@ export default function SeasonCenter({
                 const isGK = r.isGoalkeeper;
                 const gkPct = pct(r.saves, r.saves + r.goals);
                 const fpPct = r.shotPct;
+                const focusPrimaryStats = isGK
+                  ? [
+                      { label: "Räddningar", value: r.saves },
+                      { label: "Insläppta", value: r.goals },
+                      { label: "Rädd %", value: gkPct || "–" },
+                      { label: "Skott mot mål", value: r.saves + r.goals }
+                    ]
+                  : [
+                      { label: "Mål", value: r.totalGoals },
+                      { label: "Assist", value: r.assist },
+                      { label: "Avslut", value: r.attempts },
+                      { label: "Skott %", value: fpPct || "–" }
+                    ];
+                const focusGroups = isGK
+                  ? [
+                      {
+                        title: "Spel",
+                        items: [
+                          { label: "Räddningar", value: r.saveOpen },
+                          { label: "Insläppta", value: r.goalOpen }
+                        ]
+                      },
+                      {
+                        title: "7 meter",
+                        items: [
+                          { label: "Räddningar", value: r.sevenMiss },
+                          { label: "Insläppta", value: r.sevenGoal }
+                        ]
+                      },
+                      {
+                        title: "Övrigt",
+                        items: [
+                          { label: "MV-mål", value: r.gkScored },
+                          { label: "Utanför", value: r.wide },
+                          { label: "Ribba", value: r.post },
+                          { label: "Utvisningar", value: r.suspension },
+                          { label: "Gult", value: r.yellowCard },
+                          { label: "Rött", value: r.redCard }
+                        ]
+                      }
+                    ]
+                  : [
+                      {
+                        title: "Avslut",
+                        items: [
+                          { label: "Spelmål", value: r.goals },
+                          { label: "7m mål", value: r.sevenGoal },
+                          { label: "7m miss", value: r.sevenMiss },
+                          { label: "Räddade", value: r.saves },
+                          { label: "Utanför", value: r.wide },
+                          { label: "Ribba", value: r.post }
+                        ]
+                      },
+                      {
+                        title: "Spel och bestraffningar",
+                        items: [
+                          { label: "Tekniska fel", value: r.turnover },
+                          { label: "Utvisningar", value: r.suspension },
+                          { label: "Gult", value: r.yellowCard },
+                          { label: "Rött", value: r.redCard }
+                        ]
+                      }
+                    ];
 
                 return (
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold">Spelare – match</div>
+                  <div className="mt-5 space-y-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500">Spelarstatistik</div>
+                        <div className="text-xl font-extrabold text-slate-900">#{r.nr} {r.name}</div>
+                        {isGK && <div className="text-xs text-slate-500">Målvakt</div>}
+                      </div>
                       <button
                         type="button"
                         onClick={() => setSeasonMatchPlayerFocus(null)}
-                        className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold"
+                        className="self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:self-auto"
                       >
-                        Visa alla
+                        Visa hela matchen
                       </button>
                     </div>
 
-                    <div className="bg-slate-50 rounded-xl p-3 text-sm">
-                      <div className="font-semibold">#{r.nr} {r.name}{isGK ? " (Målvakt)" : ""}</div>
+                    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {focusPrimaryStats.map((item) => (
+                        <div key={item.label} className="rounded-lg bg-slate-100 px-3 py-3">
+                          <dt className="text-xs font-semibold text-slate-500">{item.label}</dt>
+                          <dd className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">{item.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
 
-                      {isGK ? (
-                        <div className="mt-3 overflow-auto">
-                          <table className="w-full text-sm border bg-white">
-                            <tbody>
-                              <tr>
-                                <td className="p-2 border">Totalt rädd</td>
-                                <td className="p-2 border text-right"><strong>{r.saves}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Rädd spel</td>
-                                <td className="p-2 border text-right"><strong>{r.saveOpen}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">7m rädd</td>
-                                <td className="p-2 border text-right"><strong>{r.sevenMiss}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Totalt insläppt</td>
-                                <td className="p-2 border text-right"><strong>{r.goals}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Insl. spel</td>
-                                <td className="p-2 border text-right"><strong>{r.goalOpen}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">7m insl</td>
-                                <td className="p-2 border text-right"><strong>{r.sevenGoal}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Rädd%</td>
-                                <td className="p-2 border text-right"><strong>{gkPct}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Utvisningar</td>
-                                <td className="p-2 border text-right"><strong>{r.suspension}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Gult</td>
-                                <td className="p-2 border text-right"><strong>{r.yellowCard}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Rött</td>
-                                <td className="p-2 border text-right"><strong>{r.redCard}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">MV mål</td>
-                                <td className="p-2 border text-right"><strong>{r.gkScored}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Utanför</td>
-                                <td className="p-2 border text-right"><strong>{r.wide}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Ribba</td>
-                                <td className="p-2 border text-right"><strong>{r.post}</strong></td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="mt-3 overflow-auto">
-                          <table className="w-full text-sm border bg-white">
-                            <tbody>
-                              <tr>
-                                <td className="p-2 border">Spelmål</td>
-                                <td className="p-2 border text-right"><strong>{r.goals}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">7m mål</td>
-                                <td className="p-2 border text-right"><strong>{r.sevenGoal}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">7m miss</td>
-                                <td className="p-2 border text-right"><strong>{r.sevenMiss}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Totala mål</td>
-                                <td className="p-2 border text-right"><strong>{r.totalGoals}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Avslut</td>
-                                <td className="p-2 border text-right"><strong>{r.attempts}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Skott%</td>
-                                <td className="p-2 border text-right"><strong>{fpPct}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Rädd (skott räddat)</td>
-                                <td className="p-2 border text-right"><strong>{r.saves}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Utanför</td>
-                                <td className="p-2 border text-right"><strong>{r.wide}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Ribba</td>
-                                <td className="p-2 border text-right"><strong>{r.post}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Utvisningar</td>
-                                <td className="p-2 border text-right"><strong>{r.suspension}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Gult</td>
-                                <td className="p-2 border text-right"><strong>{r.yellowCard}</strong></td>
-                              </tr>
-                              <tr>
-                                <td className="p-2 border">Rött</td>
-                                <td className="p-2 border text-right"><strong>{r.redCard}</strong></td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {focusGroups.map((group) => (
+                        <section key={group.title} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                          <h3 className="text-sm font-bold text-slate-800">{group.title}</h3>
+                          <dl className="mt-2 divide-y divide-slate-100">
+                            {group.items.map((item) => (
+                              <div key={item.label} className="flex items-center justify-between gap-4 py-2 text-sm">
+                                <dt className="text-slate-600">{item.label}</dt>
+                                <dd className="font-bold tabular-nums text-slate-900">{item.value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </section>
+                      ))}
                     </div>
                   </div>
                 );

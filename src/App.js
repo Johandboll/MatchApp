@@ -250,7 +250,13 @@ export default function App() {
         : filterSeasonMatchesByTeam(seasonMatches, selectedTeamId),
     [onlineMatches.matches, onlineMatches.online, pendingOnlineMatches, seasonMatches, selectedTeamId]
   );
-  const seasonOptions = useMemo(() => buildSeasonOptions(selectedSeason), [selectedSeason]);
+  const seasonOptions = useMemo(() => buildSeasonOptions(), []);
+
+  useEffect(() => {
+    if (!seasonOptions.includes(selectedSeason)) {
+      setSelectedSeason(getDefaultSeason());
+    }
+  }, [seasonOptions, selectedSeason]);
 
   const seasonSummary = useMemo(
     () => buildSeasonSummary(seasonMatchesForView, selectedTeam ? [selectedTeam] : teamsData),

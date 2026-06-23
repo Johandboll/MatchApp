@@ -1,4 +1,4 @@
-import { buildSeasonSummary } from "./appHelpers";
+import { buildSeasonOptions, buildSeasonSummary, getDefaultSeason } from "./appHelpers";
 
 const makeMatch = (player, teamId = "team-old") => ({
   teamId,
@@ -39,5 +39,21 @@ describe("buildSeasonSummary player identity", () => {
 
     expect(summary.fieldPlayers).toHaveLength(1);
     expect(summary.fieldPlayers[0].matches).toBe(2);
+  });
+});
+
+describe("season options", () => {
+  test("keeps the current season until May 31", () => {
+    const date = new Date(2026, 4, 31, 12);
+
+    expect(getDefaultSeason(date)).toBe("2025/2026");
+    expect(buildSeasonOptions(date)).toEqual(["2025/2026"]);
+  });
+
+  test("adds the new season on June 1 without future seasons", () => {
+    const date = new Date(2026, 5, 1, 12);
+
+    expect(getDefaultSeason(date)).toBe("2026/2027");
+    expect(buildSeasonOptions(date)).toEqual(["2025/2026", "2026/2027"]);
   });
 });
