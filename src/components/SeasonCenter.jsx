@@ -6,6 +6,12 @@ import {
   pct
 } from "../lib/appHelpers";
 
+const comparePlayerNames = (a, b) =>
+  String(a?.name || "").localeCompare(String(b?.name || ""), "sv", { sensitivity: "base" }) ||
+  String(a?.nr ?? "").localeCompare(String(b?.nr ?? ""), "sv");
+
+const percentageValue = (value) => Number.parseFloat(String(value || "0").replace("%", "")) || 0;
+
 export default function SeasonCenter({
   open,
   selectedTeam,
@@ -27,8 +33,9 @@ export default function SeasonCenter({
   const [seasonTab, setSeasonTab] = useState("overview");
   const [seasonSearchPlayers, setSeasonSearchPlayers] = useState("");
   const [seasonSearchMatches, setSeasonSearchMatches] = useState("");
-  const [showPlayersSearch, setShowPlayersSearch] = useState(false);
   const [showMatchesSearch, setShowMatchesSearch] = useState(false);
+  const [seasonPlayerGroup, setSeasonPlayerGroup] = useState("all");
+  const [seasonPlayerSort, setSeasonPlayerSort] = useState("name");
   const [seasonDangerOpen, setSeasonDangerOpen] = useState(false);
   const [seasonDangerText, setSeasonDangerText] = useState("");
   const [seasonMatchDetail, setSeasonMatchDetail] = useState(null);
@@ -49,8 +56,9 @@ export default function SeasonCenter({
       setSeasonDangerOpen(false);
       setSeasonDangerText("");
       setSeasonMatchDetail(null);
-      setShowPlayersSearch(false);
       setShowMatchesSearch(false);
+      setSeasonPlayerGroup("all");
+      setSeasonPlayerSort("name");
       setSeasonMatchPlayerFocus(null);
       setSeasonScope("all");
       setMatchDeleteMode(false);
@@ -115,11 +123,6 @@ export default function SeasonCenter({
       suspensions: rows.reduce((sum, row) => sum + (row.suspension || 0), 0)
     };
   };
-
-  // Clear player search query when search bar closes
-  useEffect(() => {
-    if (!showPlayersSearch && seasonSearchPlayers) setSeasonSearchPlayers("");
-  }, [showPlayersSearch, seasonSearchPlayers]);
 
   // Clear matches search query when search bar closes
   useEffect(() => {
@@ -218,12 +221,13 @@ export default function SeasonCenter({
         return String(row.nr).includes(query) || norm(row.name).includes(query);
       })
       .sort((a, b) => {
-        const na = Number(a.nr);
-        const nb = Number(b.nr);
-        if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-        return String(a.nr).localeCompare(String(b.nr), "sv");
+        if (seasonPlayerSort === "matches") return (b.matches || 0) - (a.matches || 0) || comparePlayerNames(a, b);
+        if (seasonPlayerSort === "goals") return (b.goals || 0) - (a.goals || 0) || comparePlayerNames(a, b);
+        if (seasonPlayerSort === "assists") return (b.assist || 0) - (a.assist || 0) || comparePlayerNames(a, b);
+        if (seasonPlayerSort === "shotPct") return percentageValue(b.shotPct) - percentageValue(a.shotPct) || comparePlayerNames(a, b);
+        return comparePlayerNames(a, b);
       });
-  }, [seasonSearchPlayers, scopedSeasonSummary.fieldPlayers]);
+  }, [seasonPlayerSort, seasonSearchPlayers, scopedSeasonSummary.fieldPlayers]);
 
   const filteredGoalkeepers = useMemo(() => {
     const query = norm(seasonSearchPlayers);
@@ -233,12 +237,12 @@ export default function SeasonCenter({
         return String(row.nr).includes(query) || norm(row.name).includes(query);
       })
       .sort((a, b) => {
-        const na = Number(a.nr);
-        const nb = Number(b.nr);
-        if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-        return String(a.nr).localeCompare(String(b.nr), "sv");
+        if (seasonPlayerSort === "matches") return (b.matches || 0) - (a.matches || 0) || comparePlayerNames(a, b);
+        if (seasonPlayerSort === "saves") return (b.gkSaves || 0) - (a.gkSaves || 0) || comparePlayerNames(a, b);
+        if (seasonPlayerSort === "savePct") return percentageValue(b.savePct) - percentageValue(a.savePct) || comparePlayerNames(a, b);
+        return comparePlayerNames(a, b);
       });
-  }, [seasonSearchPlayers, scopedSeasonSummary.goalkeepers]);
+  }, [seasonPlayerSort, seasonSearchPlayers, scopedSeasonSummary.goalkeepers]);
 
   const filteredMatches = useMemo(() => {
     const query = norm(seasonSearchMatches);
@@ -275,6 +279,74 @@ export default function SeasonCenter({
       await onImportBackup({ invalid: true });
     }
   };
+
+  const renderFieldPlayerList = () => (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="grid grid-cols-[minmax(0,1fr)_3.25rem_3.5rem_3.5rem_4rem] items-center gap-1 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-500 sm:grid-cols-[minmax(0,1fr)_4rem_4rem_4rem_4.5rem]">
+        <div>Spelare</div>
+        <div className="text-right">Matcher</div>
+        <div className="text-right">Mål</div>
+        <div className="text-right">Assist</div>
+        <div className="text-right">Skott %</div>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {filteredFieldPlayers.map((row) => (
+          <button
+            key={row.key}
+            type="button"
+            onClick={() => setSeasonPlayerDetail({ ...row, type: "fp" })}
+            className="grid min-h-14 w-full grid-cols-[minmax(0,1fr)_3.25rem_3.5rem_3.5rem_4rem] items-center gap-1 px-3 py-2 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_4rem_4rem_4rem_4.5rem]"
+          >
+            <div className="min-w-0">
+              <div className="truncate text-sm font-bold text-slate-900">{row.name}</div>
+              <div className="text-xs text-slate-500">#{row.nr}</div>
+            </div>
+            <div className="text-right text-sm font-semibold tabular-nums text-slate-700">{row.matches}</div>
+            <div className="text-right text-sm font-extrabold tabular-nums text-slate-900">{row.goals}</div>
+            <div className="text-right text-sm font-semibold tabular-nums text-slate-700">{row.assist ?? 0}</div>
+            <div className="text-right text-sm font-semibold tabular-nums text-slate-700">{row.shotPct || "–"}</div>
+          </button>
+        ))}
+        {filteredFieldPlayers.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-slate-500">Inga utespelare matchar sökningen.</div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderGoalkeeperList = () => (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="grid grid-cols-[minmax(0,1fr)_3.25rem_3.5rem_3.5rem_4rem] items-center gap-1 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-500 sm:grid-cols-[minmax(0,1fr)_4rem_4rem_4rem_4.5rem]">
+        <div>Målvakt</div>
+        <div className="text-right">Matcher</div>
+        <div className="text-right">Rädd</div>
+        <div className="text-right">Insläppta</div>
+        <div className="text-right">Rädd %</div>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {filteredGoalkeepers.map((row) => (
+          <button
+            key={row.key}
+            type="button"
+            onClick={() => setSeasonPlayerDetail({ ...row, type: "gk" })}
+            className="grid min-h-14 w-full grid-cols-[minmax(0,1fr)_3.25rem_3.5rem_3.5rem_4rem] items-center gap-1 px-3 py-2 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_4rem_4rem_4rem_4.5rem]"
+          >
+            <div className="min-w-0">
+              <div className="truncate text-sm font-bold text-slate-900">{row.name}</div>
+              <div className="text-xs text-slate-500">#{row.nr}</div>
+            </div>
+            <div className="text-right text-sm font-semibold tabular-nums text-slate-700">{row.matches}</div>
+            <div className="text-right text-sm font-extrabold tabular-nums text-slate-900">{row.gkSaves}</div>
+            <div className="text-right text-sm font-semibold tabular-nums text-slate-700">{row.gkConceded}</div>
+            <div className="text-right text-sm font-semibold tabular-nums text-slate-700">{row.savePct || "–"}</div>
+          </button>
+        ))}
+        {filteredGoalkeepers.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-slate-500">Inga målvakter matchar sökningen.</div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="season-center-shell fixed inset-0 z-50 flex flex-col overflow-hidden bg-slate-50">
@@ -586,139 +658,110 @@ export default function SeasonCenter({
         )}
 
         {seasonTab === "players" && (
-          <div className="space-y-4">
-            <div className="bg-white border rounded-2xl p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="text-sm font-semibold">Totalsummering per spelare</div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => setShowPlayersSearch((v) => !v)}
-                    className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold border border-black/10"
-                    aria-label="Sök spelare"
-                    title="Sök spelare"
-                  >
-                    {showPlayersSearch ? "Dölj sök" : "Visa sök"}
-                  </button>
-                  {showPlayersSearch && (
-                    <input
-                      type="text"
-                      value={seasonSearchPlayers}
-                      onChange={(e) => setSeasonSearchPlayers(e.target.value)}
-                      placeholder="Sök # eller namn"
-                      className="border rounded-xl px-2 py-1 text-sm w-full sm:w-72 h-9"
-                      autoFocus
-                    />
-                  )}
-                </div>
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">Spelare</h2>
+                <p className="text-sm text-slate-500">
+                  {scopedSeasonSummary.fieldPlayers.length + scopedSeasonSummary.goalkeepers.length} spelare i urvalet
+                </p>
               </div>
-              {showPlayersSearch && (
-                <div className="text-xs text-slate-500 mt-2">Tips: Du kan söka på nummer eller namn.</div>
-              )}
 
-              {filteredGoalkeepers.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-sm font-semibold mb-2">Målvakter</div>
-                  <div className="overflow-auto">
-                    <table className="w-full text-sm border">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="text-left p-2 border">#</th>
-                          <th className="text-left p-2 border">Målvakt</th>
-                          <th className="text-right p-2 border">Matcher</th>
-                          <th className="text-right p-2 border">Totalt rädd</th>
-                          <th className="text-right p-2 border">Rädd spel</th>
-                          <th className="text-right p-2 border">Totalt insl</th>
-                          <th className="text-right p-2 border">Insl. spel</th>
-                          <th className="text-right p-2 border">Rädd%</th>
-                          <th className="text-right p-2 border">7m Insl</th>
-                          <th className="text-right p-2 border">7m Rädd</th>
-                          <th className="text-right p-2 border">MV mål</th>
-                          <th className="text-right p-2 border">2 min</th>
-                          <th className="text-right p-2 border">Gult</th>
-                          <th className="text-right p-2 border">Rött</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredGoalkeepers.map((row) => (
-                            <tr
-                              key={row.key}
-                              onClick={() => setSeasonPlayerDetail({ ...row, type: "gk" })}
-                              className="cursor-pointer hover:bg-slate-50"
-                            >
-                              <td className="p-2 border">{row.nr}</td>
-                              <td className="p-2 border">{row.name}</td>
-                              <td className="p-2 border text-right">{row.matches}</td>
-                              <td className="p-2 border text-right">{row.gkSaves}</td>
-                              <td className="p-2 border text-right">{row.save}</td>
-                              <td className="p-2 border text-right">{row.gkConceded}</td>
-                              <td className="p-2 border text-right">{row.goal}</td>
-                              <td className="p-2 border text-right">{row.savePct}</td>
-                              <td className="p-2 border text-right">{row.sevenGoal ?? 0}</td>
-                              <td className="p-2 border text-right">{row.sevenMiss ?? 0}</td>
-                              <td className="p-2 border text-right">{row.gkScored ?? 0}</td>
-                              <td className="p-2 border text-right">{row.suspension ?? row.twoMin ?? 0}</td>
-                              <td className="p-2 border text-right">{row.yellowCard ?? 0}</td>
-                              <td className="p-2 border text-right">{row.redCard ?? 0}</td>
-                            </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-3 overflow-auto">
-                <table className="w-full text-sm border">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="text-left p-2 border">#</th>
-                      <th className="text-left p-2 border">Spelare</th>
-                      <th className="text-right p-2 border">Matcher</th>
-                      <th className="text-right p-2 border">Totalt mål</th>
-                      <th className="text-right p-2 border">Spelmål</th>
-                      <th className="text-right p-2 border">Assist</th>
-                      <th className="text-right p-2 border">Tek.fel</th>
-                      <th className="text-right p-2 border">Utanför</th>
-                      <th className="text-right p-2 border">Ribba</th>
-                      <th className="text-right p-2 border">7m mål</th>
-                      <th className="text-right p-2 border">7m miss</th>
-                      <th className="text-right p-2 border">Avslut</th>
-                      <th className="text-right p-2 border">Skott%</th>
-                      <th className="text-right p-2 border">2 min</th>
-                      <th className="text-right p-2 border">Gult</th>
-                      <th className="text-right p-2 border">Rött</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredFieldPlayers.map((row) => (
-                        <tr
-                          key={row.key}
-                          onClick={() => setSeasonPlayerDetail({ ...row, type: "fp" })}
-                          className="cursor-pointer hover:bg-slate-50"
-                        >
-                          <td className="p-2 border">{row.nr}</td>
-                          <td className="p-2 border">{row.name}</td>
-                          <td className="p-2 border text-right">{row.matches}</td>
-                          <td className="p-2 border text-right">{row.goals}</td>
-                          <td className="p-2 border text-right">{row.goal}</td>
-                          <td className="p-2 border text-right">{row.assist ?? 0}</td>
-                          <td className="p-2 border text-right">{row.turnover ?? 0}</td>
-                          <td className="p-2 border text-right">{row.wide ?? row.miss ?? 0}</td>
-                          <td className="p-2 border text-right">{row.post ?? 0}</td>
-                          <td className="p-2 border text-right">{row.sevenGoals}</td>
-                          <td className="p-2 border text-right">{row.sevenMiss ?? 0}</td>
-                          <td className="p-2 border text-right">{row.attempts}</td>
-                          <td className="p-2 border text-right">{row.shotPct}</td>
-                          <td className="p-2 border text-right">{row.suspension ?? row.twoMin ?? 0}</td>
-                          <td className="p-2 border text-right">{row.yellowCard ?? 0}</td>
-                          <td className="p-2 border text-right">{row.redCard ?? 0}</td>
-                        </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid h-10 w-full grid-cols-3 rounded-lg bg-slate-200 p-1 sm:w-[30rem]" role="tablist" aria-label="Spelartyper">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={seasonPlayerGroup === "goalkeepers"}
+                  onClick={() => {
+                    setSeasonPlayerGroup("goalkeepers");
+                    setSeasonPlayerSort("name");
+                  }}
+                  className={`rounded-md px-3 text-sm font-semibold ${
+                    seasonPlayerGroup === "goalkeepers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  }`}
+                >
+                  Målvakter ({scopedSeasonSummary.goalkeepers.length})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={seasonPlayerGroup === "field"}
+                  onClick={() => {
+                    setSeasonPlayerGroup("field");
+                    setSeasonPlayerSort("name");
+                  }}
+                  className={`rounded-md px-3 text-sm font-semibold ${
+                    seasonPlayerGroup === "field" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  }`}
+                >
+                  Utespelare ({scopedSeasonSummary.fieldPlayers.length})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={seasonPlayerGroup === "all"}
+                  onClick={() => {
+                    setSeasonPlayerGroup("all");
+                    setSeasonPlayerSort("name");
+                  }}
+                  className={`rounded-md px-2 text-sm font-semibold ${
+                    seasonPlayerGroup === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  }`}
+                >
+                  Alla ({scopedSeasonSummary.fieldPlayers.length + scopedSeasonSummary.goalkeepers.length})
+                </button>
               </div>
             </div>
+
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_13rem]">
+              <input
+                type="search"
+                value={seasonSearchPlayers}
+                onChange={(e) => setSeasonSearchPlayers(e.target.value)}
+                placeholder="Sök namn eller nummer"
+                aria-label="Sök spelare"
+                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              />
+              <select
+                value={seasonPlayerSort}
+                onChange={(e) => setSeasonPlayerSort(e.target.value)}
+                aria-label="Sortera spelare"
+                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+              >
+                <option value="name">Namn A–Ö</option>
+                <option value="matches">Flest matcher</option>
+                {seasonPlayerGroup === "field" && (
+                  <>
+                    <option value="goals">Flest mål</option>
+                    <option value="assists">Flest assist</option>
+                    <option value="shotPct">Högst skottprocent</option>
+                  </>
+                )}
+                {seasonPlayerGroup === "goalkeepers" && (
+                  <>
+                    <option value="saves">Flest räddningar</option>
+                    <option value="savePct">Högst räddningsprocent</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            {seasonPlayerGroup === "all" ? (
+              <div className="space-y-4">
+                <section>
+                  <h3 className="mb-2 text-sm font-bold text-slate-700">Målvakter ({filteredGoalkeepers.length})</h3>
+                  {renderGoalkeeperList()}
+                </section>
+                <section>
+                  <h3 className="mb-2 text-sm font-bold text-slate-700">Utespelare ({filteredFieldPlayers.length})</h3>
+                  {renderFieldPlayerList()}
+                </section>
+              </div>
+            ) : seasonPlayerGroup === "goalkeepers" ? (
+              renderGoalkeeperList()
+            ) : (
+              renderFieldPlayerList()
+            )}
           </div>
         )}
 

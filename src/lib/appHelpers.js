@@ -80,6 +80,8 @@ export const getPlayerId = (player) => firstPresent(player?.playerId, player?.id
 
 export const getPlayerShirtNumber = (player) => firstPresent(player?.shirtNumber, player?.nr);
 
+const getExplicitPlayerId = (player) => firstPresent(player?.playerId, player?.id);
+
 export const playerMatchesRef = (player, ref) =>
   String(getPlayerId(player)) === String(ref) || String(player?.nr) === String(ref);
 
@@ -337,14 +339,17 @@ const resolvePlayersInMatch = (match, teamsData) => {
   }
 
   if (playersInMatch.length === 0 && Array.isArray(match.selectedPlayers)) {
-    const team = teamsData.find((item) => item.id === match.teamId);
+    const team =
+      teamsData.find((item) => item.id === match.teamId) ||
+      (teamsData.length === 1 ? teamsData[0] : null);
     const basePlayers = Array.isArray(team?.players) ? team.players : [];
     playersInMatch = match.selectedPlayers
       .map((ref) => {
         const player = basePlayers.find((item) => playerMatchesRef(item, ref));
         const shirtNumber = getPlayerShirtNumber(player) ?? ref;
+        const fallbackId = Number.isFinite(Number(ref)) ? undefined : ref;
         return {
-          id: getPlayerId(player) ?? ref,
+          id: getExplicitPlayerId(player) ?? fallbackId,
           nr: Number(shirtNumber),
           shirtNumber: Number(shirtNumber),
           name: player?.name || "",
@@ -354,17 +359,19 @@ const resolvePlayersInMatch = (match, teamsData) => {
       .filter((player) => Number.isFinite(Number(player.nr)));
   }
 
-  const team = teamsData.find((item) => item.id === match.teamId);
+  const team =
+    teamsData.find((item) => item.id === match.teamId) ||
+    (teamsData.length === 1 ? teamsData[0] : null);
   const basePlayers = Array.isArray(team?.players) ? team.players : [];
   if (basePlayers.length === 0) return playersInMatch;
 
   const findCanonicalPlayer = (player) => {
-    const playerId = getPlayerId(player);
+    const playerId = getExplicitPlayerId(player);
     const shirtNumber = getPlayerShirtNumber(player);
     const name = normPlayerText(player?.name);
 
     const byId = basePlayers.find((item) => {
-      const itemId = getPlayerId(item);
+      const itemId = getExplicitPlayerId(item);
       return playerId != null && playerId !== "" && itemId != null && String(itemId) === String(playerId);
     });
     if (byId) return byId;
@@ -385,7 +392,7 @@ const resolvePlayersInMatch = (match, teamsData) => {
     const canonical = findCanonicalPlayer(player);
     if (!canonical) return player;
 
-    const canonicalId = getPlayerId(canonical);
+    const canonicalId = getExplicitPlayerId(canonical);
     const canonicalShirtNumber = getPlayerShirtNumber(canonical);
 
     return {
@@ -414,11 +421,18 @@ export const buildSeasonSummary = (matches, teamsData) => {
   const byPlayer = new Map();
 
   const getRow = (player) => {
-    const key = `${player.role || "field"}:${getPlayerId(player) ?? getPlayerShirtNumber(player)}`;
+    const explicitId = getExplicitPlayerId(player);
+    const normalizedName = normPlayerText(player?.name);
+    const identity = explicitId
+      ? `id:${explicitId}`
+      : normalizedName
+        ? `name:${normalizedName}`
+        : `number:${getPlayerShirtNumber(player) ?? "unknown"}`;
+    const key = `${player.role || "field"}:${identity}`;
     if (!byPlayer.has(key)) {
       byPlayer.set(key, {
         key,
-        id: getPlayerId(player),
+        id: explicitId,
         nr: getPlayerShirtNumber(player),
         name: player.name || "",
         role: player.role || "field",
