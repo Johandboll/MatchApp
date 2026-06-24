@@ -1,8 +1,12 @@
 import React, { useEffect, useRef } from "react";
 
-export default function WhatsNewModal({ open, title, items, onClose }) {
+export default function WhatsNewModal({ open, title, items, previousVersion, previousItems, onClose }) {
   const modalRef = useRef(null);
   const cleanItems = (Array.isArray(items) ? items : [])
+    .map((x) => (x == null ? "" : String(x)))
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const cleanPreviousItems = (Array.isArray(previousItems) ? previousItems : [])
     .map((x) => (x == null ? "" : String(x)))
     .map((s) => s.trim())
     .filter(Boolean);
@@ -20,6 +24,31 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const scrollY = window.scrollY;
+    const previous = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width
+    };
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = previous.overflow;
+      document.body.style.position = previous.position;
+      document.body.style.top = previous.top;
+      document.body.style.width = previous.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -67,6 +96,19 @@ export default function WhatsNewModal({ open, title, items, onClose }) {
             <p style={styles.p}>Inga nyheter för den här versionen.</p>
           )}
 
+          {cleanPreviousItems.length > 0 && (
+            <section style={styles.previousSection}>
+              <h3 style={styles.previousHeading}>Även nytt i {previousVersion}</h3>
+              <ul style={styles.previousList}>
+                {cleanPreviousItems.map((txt, idx) => (
+                  <li key={idx} style={styles.previousItem}>
+                    {renderHighlightedPrefix(txt)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <div style={styles.bodyFooter}>
             <button type="button" onClick={onClose} style={styles.button}>
               Stäng
@@ -100,6 +142,7 @@ const styles = {
     justifyContent: "center",
     zIndex: 9999,
     padding: 16,
+    overscrollBehavior: "contain",
   },
   modal: {
     width: "min(560px, 100%)",
@@ -141,6 +184,7 @@ const styles = {
     padding: "14px 18px",
     overflowY: "auto",
     WebkitOverflowScrolling: "touch",
+    overscrollBehavior: "contain",
   },
   ul: {
     margin: 0,
@@ -151,6 +195,26 @@ const styles = {
   },
   p: {
     margin: 0,
+  },
+  previousSection: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTop: "1px solid #e2e8f0",
+    color: "#64748b",
+  },
+  previousHeading: {
+    margin: "0 0 8px",
+    fontSize: 13,
+    color: "#475569",
+  },
+  previousList: {
+    margin: 0,
+    paddingLeft: 17,
+  },
+  previousItem: {
+    marginBottom: 6,
+    fontSize: 12,
+    lineHeight: 1.45,
   },
   bodyFooter: {
     marginTop: 18,

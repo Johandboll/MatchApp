@@ -2,6 +2,13 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.2": [
+    "**Säsongscenter:** Översikt, spelare och matcher har fått ett renare utseende som är snabbare att använda på iPad.",
+    "**Spelarstatistik:** Spelare kopplas säkrare till samma identitet även när namn eller tröjnummer har ändrats.",
+    "**Matchstatistik:** Straffar, räddningar och insläppta mål räknas nu utan risk för dubbelräkning.",
+    "**Matchvyn:** Resultattavla, statistikknappar och Mer-menyer har blivit tydligare och mer lättanvända.",
+    "**Säsonger:** Framtida säsonger visas inte längre i förväg. En ny säsong blir tillgänglig den 1 juni."
+  ],
   "2.0.1": [
     "**Spelare från matcher:** Lagadmin kan nu föreslå spelare som finns i importerade matcher men saknas i truppen, så du slipper lägga in dem manuellt.",
     "**Tröjnummer:** Samma tröjnummer kan nu användas av flera spelare i samma lag. Appen använder namn som identitet och nummer som visning.",

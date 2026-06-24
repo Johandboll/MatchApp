@@ -7,6 +7,8 @@ const STORAGE_KEY = "matchapp_whatsnew_seen_version";
 export function useWhatsNew() {
   const version = useMemo(() => APP_VERSION, []);
   const items = useMemo(() => getWhatsNewItems(version), [version]);
+  const previousVersion = "2.0.1";
+  const previousItems = useMemo(() => getWhatsNewItems("2.0.1"), []);
 
   const [open, setOpen] = useState(false);
 
@@ -31,5 +33,5 @@ export function useWhatsNew() {
     }
   }
 
-  return { open, version, items, close };
+  return { open, version, items, previousVersion, previousItems, close };
 }

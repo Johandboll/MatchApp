@@ -1431,6 +1431,8 @@ export default function App() {
         open={whatsNew.open}
         title={`Vad är nytt i MatchApp ${whatsNew.version}?`}
         items={whatsNew.items}
+        previousVersion={whatsNew.previousVersion}
+        previousItems={whatsNew.previousItems}
         onClose={whatsNew.close}
       />
 
