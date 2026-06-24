@@ -1082,7 +1082,7 @@ export default function SeasonCenter({
                 );
               };
 
-              const playerMatchRows = (matches || [])
+              const playerMatchRows = (scopedMatches || [])
                 .map((m) => {
                   const player = getPlayerFromMatch(m);
                   const row = buildMatchStatRow(
