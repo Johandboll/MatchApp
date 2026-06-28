@@ -2,6 +2,13 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.3": [
+    "**Telefonvy:** Matchvyn har fått ett särskilt telefonläge med tydligare spelarval och stora händelseknappar.",
+    "**Snabb registrering:** Spelarens händelsepanel öppnas när du väljer spelaren och stängs automatiskt efter registreringen.",
+    "**Integritet:** Information om personuppgifter visas vid första besöket efter inloggning och finns även via Lagadmin.",
+    "**Roller:** Ägare och admin har tydligare ansvar. Destruktiva åtgärder som att ta bort matcher, rensa säsong och ta bort medlemmar är ägarstyrda.",
+    "**iPad:** Den befintliga matchvyn för iPad är oförändrad."
+  ],
   "2.0.2": [
     "**Säsongscenter:** Översikt, spelare och matcher har fått ett renare utseende som är snabbare att använda på iPad.",
     "**Spelarstatistik:** Spelare kopplas säkrare till samma identitet även när namn eller tröjnummer har ändrats.",

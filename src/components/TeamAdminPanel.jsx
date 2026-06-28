@@ -20,7 +20,18 @@ const playerShirtNumber = (player) => {
   return Number.isFinite(number) ? number : "";
 };
 
-export default function TeamAdminPanel({ open, team, currentUser, onClose, onToast, onPlayersChanged, onConfirm, matches = [] }) {
+export default function TeamAdminPanel({
+  open,
+  team,
+  currentUser,
+  onClose,
+  onToast,
+  onPlayersChanged,
+  onConfirm,
+  matches = [],
+  currentUserRole,
+  onOpenPrivacyNotice
+}) {
   const [tab, setTab] = useState("players");
   const [members, setMembers] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -40,6 +51,7 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [playerError, setPlayerError] = useState("");
+  const isCurrentUserOwner = currentUserRole === "owner";
 
   const canLoad = open && supabase && team?.onlineId;
 
@@ -136,10 +148,12 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
     setBusy(true);
     setError("");
 
+    const requestedRole = isCurrentUserOwner ? role : "member";
+
     const { data, error: mutationError } = await supabase.rpc("add_team_member_by_email", {
       target_team_id: team.onlineId,
       member_email: email,
-      member_role: role
+      member_role: requestedRole
     });
 
     if (mutationError) {
@@ -382,13 +396,22 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lagadmin</div>
             <h2 className="text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Stäng
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenPrivacyNotice}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Integritet
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Stäng
+            </button>
+          </div>
         </div>
 
         <div className="border-b border-slate-200 px-4 pt-3">
@@ -462,17 +485,17 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
                       <div className="flex flex-wrap items-center gap-2">
                         <select
                           value={member.role}
-                          disabled={busy || isOwner}
+                          disabled={busy || isOwner || !isCurrentUserOwner}
                           onChange={(event) => changeRole(member, event.target.value)}
                           className="rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm disabled:opacity-60"
                         >
-                          <option value="owner">Ägare</option>
+                          {isOwner && <option value="owner">Ägare</option>}
                           <option value="admin">Admin</option>
                           <option value="member">Medlem</option>
                         </select>
                         <button
                           type="button"
-                          disabled={busy || isOwner || isCurrentUser}
+                          disabled={busy || isOwner || isCurrentUser || !isCurrentUserOwner}
                           onClick={() => removeMember(member)}
                           className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -540,10 +563,11 @@ export default function TeamAdminPanel({ open, team, currentUser, onClose, onToa
               <select
                 value={role}
                 onChange={(event) => setRole(event.target.value)}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base"
+                disabled={!isCurrentUserOwner}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base disabled:opacity-60"
               >
                 <option value="member">Medlem</option>
-                <option value="admin">Admin</option>
+                {isCurrentUserOwner && <option value="admin">Admin</option>}
               </select>
               <button
                 type="submit"

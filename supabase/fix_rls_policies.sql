@@ -46,6 +46,22 @@ as $$
   );
 $$;
 
+create or replace function public.is_team_owner(target_team_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.team_members tm
+    where tm.team_id = target_team_id
+      and tm.user_id = auth.uid()
+      and tm.role = 'owner'
+  );
+$$;
+
 create policy "members can read their teams"
 on public.teams for select
 to authenticated
@@ -64,13 +80,13 @@ with check (public.is_team_admin(team_id));
 create policy "admins can update team memberships"
 on public.team_members for update
 to authenticated
-using (public.is_team_admin(team_id))
-with check (public.is_team_admin(team_id));
+using (public.is_team_owner(team_id))
+with check (public.is_team_owner(team_id));
 
 create policy "admins can delete team memberships"
 on public.team_members for delete
 to authenticated
-using (public.is_team_admin(team_id));
+using (public.is_team_owner(team_id));
 
 create policy "members can read players"
 on public.players for select
@@ -91,7 +107,7 @@ with check (public.is_team_admin(team_id));
 create policy "admins can delete players"
 on public.players for delete
 to authenticated
-using (public.is_team_admin(team_id));
+using (public.is_team_owner(team_id));
 
 create policy "members can read matches"
 on public.matches for select
@@ -115,4 +131,4 @@ with check (public.is_team_member(team_id));
 create policy "admins can delete matches"
 on public.matches for delete
 to authenticated
-using (public.is_team_admin(team_id));
+using (public.is_team_owner(team_id));

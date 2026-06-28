@@ -9,6 +9,7 @@ import SeasonCenter from "./components/SeasonCenter";
 import TeamAdminPanel from "./components/TeamAdminPanel";
 import ConfirmDialog from "./components/ConfirmDialog";
 import AppUpdatePrompt from "./components/AppUpdatePrompt";
+import PrivacyNoticeModal, { PRIVACY_NOTICE_VERSION } from "./components/PrivacyNoticeModal";
 import { getChangelogTooltip } from "./changelog";
 import { APP_VERSION } from "./config/appVersion";
 import { useAppUpdate } from "./hooks/useAppUpdate";
@@ -43,6 +44,8 @@ const CHANGELOG_TOOLTIP = getChangelogTooltip(APP_VERSION);
 
 const EXTERNAL_TEAM_ID = "__external_team_file__";
 const PENDING_ONLINE_MATCHES_KEY = "matchapp-pending-online-matches";
+const PRIVACY_NOTICE_KEY = "matchapp-privacy-notice";
+const PRIVACY_NOTICE_COLUMNS_MISSING = "42703";
 const slugifyPlayerPart = (value) =>
   String(value || "")
     .normalize("NFD")
@@ -96,6 +99,65 @@ function savePendingOnlineMatches(matches) {
   try {
     localStorage.setItem(PENDING_ONLINE_MATCHES_KEY, JSON.stringify(matches));
   } catch {}
+}
+
+function getPrivacyNoticeStorageKey(user) {
+  return `${PRIVACY_NOTICE_KEY}:${user?.id || user?.email || "local"}`;
+}
+
+function hasSeenPrivacyNotice(user) {
+  try {
+    return localStorage.getItem(getPrivacyNoticeStorageKey(user)) === PRIVACY_NOTICE_VERSION;
+  } catch {
+    return true;
+  }
+}
+
+function markPrivacyNoticeSeen(user) {
+  try {
+    localStorage.setItem(getPrivacyNoticeStorageKey(user), PRIVACY_NOTICE_VERSION);
+  } catch {}
+}
+
+async function hasSeenPrivacyNoticeInSupabase(user) {
+  if (!supabase || !user?.id) return hasSeenPrivacyNotice(user);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("privacy_notice_version")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code !== PRIVACY_NOTICE_COLUMNS_MISSING) {
+      console.warn("Kunde inte läsa integritetsinformation:", error.message);
+    }
+    return hasSeenPrivacyNotice(user);
+  }
+
+  return data?.privacy_notice_version === PRIVACY_NOTICE_VERSION;
+}
+
+async function markPrivacyNoticeSeenInSupabase(user) {
+  markPrivacyNoticeSeen(user);
+  if (!supabase || !user?.id) return;
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        user_id: user.id,
+        email: user.email || null,
+        privacy_notice_version: PRIVACY_NOTICE_VERSION,
+        privacy_notice_seen_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (error) {
+    console.warn("Kunde inte spara integritetsinformation:", error.message);
+  }
 }
 
 export default function App() {
@@ -162,6 +224,8 @@ export default function App() {
   const [viewMode, setViewMode] = useState(() => saved?.viewMode || "match");
   const [seasonOpen, setSeasonOpen] = useState(false);
   const [teamAdminOpen, setTeamAdminOpen] = useState(false);
+  const [privacyNoticeOpen, setPrivacyNoticeOpen] = useState(false);
+  const [privacyNoticeRequired, setPrivacyNoticeRequired] = useState(false);
   const [toast, setToast] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [pendingOnlineMatches, setPendingOnlineMatches] = useState(() => loadPendingOnlineMatches());
@@ -177,7 +241,43 @@ export default function App() {
   }, [availableTeams, selectedTeamId, externalTeamData]);
   const canManageSelectedTeam =
     !selectedTeam?.onlineId || ["owner", "admin"].includes(selectedTeam?.membershipRole);
+  const canDeleteFromSelectedTeam =
+    !selectedTeam?.onlineId || selectedTeam?.membershipRole === "owner";
   const onlineMatches = useSupabaseMatches(auth.user, selectedTeam);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isSupabaseConfigured || !auth.user) {
+      setPrivacyNoticeRequired(false);
+      setPrivacyNoticeOpen(false);
+      return undefined;
+    }
+
+    const checkPrivacyNotice = async () => {
+      const seen = await hasSeenPrivacyNoticeInSupabase(auth.user);
+      if (cancelled) return;
+
+      if (!seen) {
+        setPrivacyNoticeRequired(true);
+        setPrivacyNoticeOpen(true);
+      } else {
+        setPrivacyNoticeRequired(false);
+      }
+    };
+
+    checkPrivacyNotice();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user]);
+
+  const closePrivacyNotice = useCallback(async () => {
+    if (auth.user) await markPrivacyNoticeSeenInSupabase(auth.user);
+    setPrivacyNoticeRequired(false);
+    setPrivacyNoticeOpen(false);
+  }, [auth.user]);
 
   const basePlayers = useMemo(() => {
     if (selectedTeam && Array.isArray(selectedTeam.players) && selectedTeam.players.length > 0) {
@@ -909,8 +1009,8 @@ export default function App() {
 
   const handleDeleteSeasonMatch = useCallback(
     async (matchId) => {
-      if (!canManageSelectedTeam) {
-        showToast("Endast ägare/admin kan ta bort matcher");
+      if (!canDeleteFromSelectedTeam) {
+        showToast("Endast ägare kan ta bort matcher");
         return;
       }
 
@@ -935,12 +1035,12 @@ export default function App() {
       setSeasonMatches((prev) => prev.filter((match) => match.id !== matchId));
       showToast("Match borttagen");
     },
-    [canManageSelectedTeam, onlineMatches, pendingOnlineMatches, showToast]
+    [canDeleteFromSelectedTeam, onlineMatches, pendingOnlineMatches, showToast]
   );
 
   const handleClearSeason = useCallback(async () => {
-    if (!canManageSelectedTeam) {
-      showToast("Endast ägare/admin kan rensa säsongen");
+    if (!canDeleteFromSelectedTeam) {
+      showToast("Endast ägare kan rensa säsongen");
       return;
     }
 
@@ -977,7 +1077,7 @@ export default function App() {
     showToast("Säsongen rensad");
     setSeasonOpen(false);
   }, [
-    canManageSelectedTeam,
+    canDeleteFromSelectedTeam,
     onlineMatches,
     seasonMatchesForView,
     selectedSeason,
@@ -1243,6 +1343,11 @@ export default function App() {
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
           Hämtar dina lag...
         </div>
+        <PrivacyNoticeModal
+          open={privacyNoticeOpen}
+          requireAcknowledge={privacyNoticeRequired}
+          onClose={closePrivacyNotice}
+        />
         {updatePrompt}
       </div>
     );
@@ -1257,6 +1362,11 @@ export default function App() {
           onSelectTeam={setSelectedTeamId}
           error={onlineTeams.error}
           onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
+        />
+        <PrivacyNoticeModal
+          open={privacyNoticeOpen}
+          requireAcknowledge={privacyNoticeRequired}
+          onClose={closePrivacyNotice}
         />
         {updatePrompt}
       </>
@@ -1293,7 +1403,7 @@ export default function App() {
               >
                 Säsong
               </button>
-              {selectedTeam?.onlineId && (
+              {selectedTeam?.onlineId && canManageSelectedTeam && (
                 <button
                   type="button"
                   onClick={() => setTeamAdminOpen(true)}
@@ -1383,7 +1493,7 @@ export default function App() {
         onClearSeason={handleClearSeason}
         onExportMatchExcel={downloadExcel}
         onConfirm={requestConfirm}
-        canManageSeason={canManageSelectedTeam}
+        canManageSeason={canDeleteFromSelectedTeam}
       />
 
       <TeamAdminPanel
@@ -1395,6 +1505,11 @@ export default function App() {
         onPlayersChanged={handleTeamPlayersChanged}
         onConfirm={requestConfirm}
         matches={matchesForPlayerImport}
+        currentUserRole={selectedTeam?.membershipRole}
+        onOpenPrivacyNotice={() => {
+          setPrivacyNoticeRequired(false);
+          setPrivacyNoticeOpen(true);
+        }}
       />
 
       <ConfirmDialog
@@ -1434,6 +1549,12 @@ export default function App() {
         previousVersion={whatsNew.previousVersion}
         previousItems={whatsNew.previousItems}
         onClose={whatsNew.close}
+      />
+
+      <PrivacyNoticeModal
+        open={privacyNoticeOpen}
+        requireAcknowledge={privacyNoticeRequired}
+        onClose={closePrivacyNotice}
       />
 
       {updatePrompt}

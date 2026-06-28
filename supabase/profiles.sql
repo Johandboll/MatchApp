@@ -2,9 +2,15 @@ create table if not exists public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
   email text,
+  privacy_notice_version text,
+  privacy_notice_seen_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists privacy_notice_version text,
+  add column if not exists privacy_notice_seen_at timestamptz;
 
 alter table public.profiles enable row level security;
 

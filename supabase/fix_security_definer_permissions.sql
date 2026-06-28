@@ -7,6 +7,9 @@ grant execute on function public.is_team_member(uuid) to authenticated;
 revoke execute on function public.is_team_admin(uuid) from public, anon;
 grant execute on function public.is_team_admin(uuid) to authenticated;
 
+revoke execute on function public.is_team_owner(uuid) from public, anon;
+grant execute on function public.is_team_owner(uuid) to authenticated;
+
 revoke execute on function public.create_team_for_current_user(text) from public, anon;
 grant execute on function public.create_team_for_current_user(text) to authenticated;
 

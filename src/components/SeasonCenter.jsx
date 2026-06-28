@@ -723,7 +723,7 @@ export default function SeasonCenter({
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-bold text-slate-700">Begränsad behörighet</div>
                 <div className="mt-1 text-sm text-slate-500">
-                  Du kan se säsongen, men endast ägare/admin kan ta bort matcher eller rensa säsongen.
+                  Du kan se säsongen, men endast ägare kan ta bort matcher eller rensa säsongen.
                 </div>
               </div>
             )}

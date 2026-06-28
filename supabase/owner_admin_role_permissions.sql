@@ -1,91 +1,47 @@
-drop function if exists public.add_team_member_by_email(uuid, text, text);
-drop function if exists public.update_team_member_role(uuid, uuid, text);
-drop function if exists public.remove_team_member(uuid, uuid);
-drop function if exists public.search_team_member_candidates(uuid, text);
-drop function if exists public.list_team_members(uuid);
-
-create or replace function public.list_team_members(target_team_id uuid)
-returns table (
-  user_id uuid,
-  display_name text,
-  email text,
-  role text,
-  created_at timestamptz
-)
+create or replace function public.is_team_owner(target_team_id uuid)
+returns boolean
 language sql
 security definer
-set search_path = public, auth
+set search_path = public
 stable
 as $$
-  select
-    tm.user_id,
-    p.display_name::text,
-    au.email::text,
-    tm.role,
-    tm.created_at
-  from public.team_members tm
-  join auth.users au on au.id = tm.user_id
-  left join public.profiles p on p.user_id = tm.user_id
-  where tm.team_id = target_team_id
-    and public.is_team_member(target_team_id)
-  order by
-    case tm.role
-      when 'owner' then 1
-      when 'admin' then 2
-      else 3
-    end,
-    p.display_name,
-    au.email;
+  select exists (
+    select 1
+    from public.team_members tm
+    where tm.team_id = target_team_id
+      and tm.user_id = auth.uid()
+      and tm.role = 'owner'
+  );
 $$;
 
-create or replace function public.search_team_member_candidates(
-  target_team_id uuid,
-  search_text text
-)
-returns table (
-  user_id uuid,
-  display_name text,
-  email text,
-  existing_role text
-)
-language plpgsql
-security definer
-set search_path = public, auth
-stable
-as $$
-declare
-  clean_search text;
-begin
-  if not public.is_team_admin(target_team_id) then
-    raise exception 'Du saknar behörighet att söka efter medlemmar.';
-  end if;
+revoke execute on function public.is_team_owner(uuid) from public, anon;
+grant execute on function public.is_team_owner(uuid) to authenticated;
 
-  clean_search := lower(trim(coalesce(search_text, '')));
+drop policy if exists "admins can update team memberships" on public.team_members;
+drop policy if exists "admins can delete team memberships" on public.team_members;
+drop policy if exists "admins can delete players" on public.players;
+drop policy if exists "admins can delete matches" on public.matches;
 
-  if length(clean_search) < 2 then
-    return;
-  end if;
+create policy "admins can update team memberships"
+on public.team_members for update
+to authenticated
+using (public.is_team_owner(team_id))
+with check (public.is_team_owner(team_id));
 
-  return query
-  select
-    au.id,
-    p.display_name::text,
-    au.email::text,
-    tm.role::text as existing_role
-  from auth.users au
-  left join public.profiles p on p.user_id = au.id
-  left join public.team_members tm
-    on tm.user_id = au.id
-   and tm.team_id = target_team_id
-  where lower(coalesce(p.display_name, '')) like '%' || clean_search || '%'
-     or lower(coalesce(au.email, '')) like '%' || clean_search || '%'
-  order by
-    case when tm.user_id is null then 0 else 1 end,
-    p.display_name,
-    au.email
-  limit 8;
-end;
-$$;
+create policy "admins can delete team memberships"
+on public.team_members for delete
+to authenticated
+using (public.is_team_owner(team_id));
+
+create policy "admins can delete players"
+on public.players for delete
+to authenticated
+using (public.is_team_owner(team_id));
+
+create policy "admins can delete matches"
+on public.matches for delete
+to authenticated
+using (public.is_team_owner(team_id));
 
 create or replace function public.add_team_member_by_email(
   target_team_id uuid,

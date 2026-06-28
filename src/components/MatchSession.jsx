@@ -142,6 +142,7 @@ export default function MatchSession({
           selectedPlayers={selectedPlayers}
           stats={stats}
           increment={increment}
+          onReset={onReset}
         />
       ) : (
         <StatsView allPlayers={playersForUI} selectedPlayers={selectedPlayers} stats={stats} />
