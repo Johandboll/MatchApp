@@ -1381,6 +1381,7 @@ export default function App() {
         onlineId: createdTeam.id,
         name: createdTeam.name,
         membershipRole: "owner",
+        deletionScheduledAt: null,
         players: []
       };
 
@@ -1418,17 +1419,18 @@ export default function App() {
     [onlineTeams, selectedTeam]
   );
 
-  const handleTeamDeleted = useCallback(
-    (deletedTeam) => {
-      if (!deletedTeam?.id) return;
+  const handleTeamDeletionChanged = useCallback(
+    (changedTeam, deletionScheduledAt) => {
+      if (!changedTeam?.id) return;
 
-      onlineTeams.setTeams((prev) => prev.filter((team) => team.id !== deletedTeam.id));
-      setTeamAdminOpen(false);
-      performTeamSelection(null);
-      accountAccess.refresh();
-      showToast("Lag raderat");
+      onlineTeams.setTeams((prev) =>
+        prev.map((team) =>
+          team.id === changedTeam.id ? { ...team, deletionScheduledAt } : team
+        )
+      );
+      showToast(deletionScheduledAt ? "Laget raderas om 24 timmar" : "Raderingen är ångrad");
     },
-    [accountAccess, onlineTeams, performTeamSelection, showToast]
+    [onlineTeams, showToast]
   );
 
   const canStartMatch =
@@ -1773,7 +1775,7 @@ export default function App() {
         onSelectTeam={handleSelectTeam}
         accountAccess={accountAccess}
         onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
-        onTeamDeleted={handleTeamDeleted}
+        onTeamDeletionChanged={handleTeamDeletionChanged}
         currentUser={auth.user}
         onClose={() => setTeamAdminOpen(false)}
         onToast={showToast}

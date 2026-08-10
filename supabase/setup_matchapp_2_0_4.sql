@@ -17,6 +17,10 @@ create table if not exists public.teams (
   created_at timestamptz not null default now()
 );
 
+alter table public.teams
+  add column if not exists deletion_scheduled_at timestamptz,
+  add column if not exists deletion_scheduled_by uuid references auth.users(id) on delete set null;
+
 create table if not exists public.team_members (
   team_id uuid not null references public.teams(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -659,7 +663,41 @@ begin
 end;
 $$;
 
-create or replace function public.delete_team_for_current_user(target_team_id uuid)
+drop function if exists public.delete_team_for_current_user(uuid);
+
+create or replace function public.schedule_team_deletion(target_team_id uuid)
+returns table (deletion_scheduled_at timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  scheduled_at timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'Du måste vara inloggad för att schemalägga radering.';
+  end if;
+
+  if not public.is_team_owner(target_team_id) then
+    raise exception 'Endast lagets ägare kan radera laget.';
+  end if;
+
+  scheduled_at := now() + interval '24 hours';
+
+  update public.teams
+  set deletion_scheduled_at = scheduled_at,
+      deletion_scheduled_by = auth.uid()
+  where id = target_team_id;
+
+  if not found then
+    raise exception 'Laget kunde inte hittas.';
+  end if;
+
+  return query select scheduled_at;
+end;
+$$;
+
+create or replace function public.cancel_team_deletion(target_team_id uuid)
 returns void
 language plpgsql
 security definer
@@ -667,14 +705,16 @@ set search_path = public
 as $$
 begin
   if auth.uid() is null then
-    raise exception 'Du måste vara inloggad för att radera lag.';
+    raise exception 'Du måste vara inloggad för att ångra radering.';
   end if;
 
   if not public.is_team_owner(target_team_id) then
-    raise exception 'Endast lagets ägare kan radera laget.';
+    raise exception 'Endast lagets ägare kan ångra raderingen.';
   end if;
 
-  delete from public.teams
+  update public.teams
+  set deletion_scheduled_at = null,
+      deletion_scheduled_by = null
   where id = target_team_id;
 
   if not found then
@@ -682,6 +722,31 @@ begin
   end if;
 end;
 $$;
+
+create or replace function public.purge_scheduled_teams()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.teams
+  where deletion_scheduled_at is not null
+    and deletion_scheduled_at <= now();
+$$;
+
+revoke execute on function public.purge_scheduled_teams() from public, anon, authenticated;
+
+create extension if not exists pg_cron with schema extensions;
+
+select cron.unschedule(jobid)
+from cron.job
+where jobname = 'matchapp-purge-scheduled-teams';
+
+select cron.schedule(
+  'matchapp-purge-scheduled-teams',
+  '*/5 * * * *',
+  'select public.purge_scheduled_teams();'
+);
 
 revoke execute on function public.is_system_admin() from public, anon;
 grant execute on function public.is_system_admin() to authenticated;
@@ -1116,8 +1181,11 @@ grant execute on function public.is_team_owner(uuid) to authenticated;
 revoke execute on function public.create_team_for_current_user(text) from public, anon;
 grant execute on function public.create_team_for_current_user(text) to authenticated;
 
-revoke execute on function public.delete_team_for_current_user(uuid) from public, anon;
-grant execute on function public.delete_team_for_current_user(uuid) to authenticated;
+revoke execute on function public.schedule_team_deletion(uuid) from public, anon;
+grant execute on function public.schedule_team_deletion(uuid) to authenticated;
+
+revoke execute on function public.cancel_team_deletion(uuid) from public, anon;
+grant execute on function public.cancel_team_deletion(uuid) to authenticated;
 
 revoke execute on function public.is_system_admin() from public, anon;
 grant execute on function public.is_system_admin() to authenticated;

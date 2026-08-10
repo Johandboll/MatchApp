@@ -37,7 +37,7 @@ export default function TeamAdminPanel({
   onSelectTeam,
   accountAccess,
   onTeamCreated,
-  onTeamDeleted,
+  onTeamDeletionChanged,
   currentUser,
   onClose,
   onToast,
@@ -78,19 +78,21 @@ export default function TeamAdminPanel({
 
   const canLoad = open && supabase && team?.onlineId && canManageCurrentTeam;
 
-  const deleteTeam = () => {
-    if (!supabase || !team?.onlineId || !isCurrentUserOwner || !onTeamDeleted) return;
+  const deletionScheduledAt = team?.deletionScheduledAt || null;
+
+  const scheduleTeamDeletion = () => {
+    if (!supabase || !team?.onlineId || !isCurrentUserOwner || !onTeamDeletionChanged) return;
 
     setDeleteError("");
     onConfirm?.({
-      title: "Radera lag permanent?",
-      message: `Laget ${team.name} och alla dess spelare, matcher och medlemskap raderas permanent. Detta går inte att ångra.`,
-      confirmText: "Radera laget",
+      title: "Radera lag om 24 timmar?",
+      message: `Laget ${team.name} schemaläggs för permanent radering om 24 timmar. Du kan ångra raderingen fram till dess.`,
+      confirmText: "Schemalägg radering",
       cancelText: "Avbryt",
       variant: "danger",
       onConfirm: async () => {
         setBusy(true);
-        const { error: rpcError } = await supabase.rpc("delete_team_for_current_user", {
+        const { data, error: rpcError } = await supabase.rpc("schedule_team_deletion", {
           target_team_id: team.onlineId
         });
         setBusy(false);
@@ -100,9 +102,28 @@ export default function TeamAdminPanel({
           return;
         }
 
-        onTeamDeleted(team);
+        const row = Array.isArray(data) ? data[0] : data;
+        onTeamDeletionChanged(team, row?.deletion_scheduled_at || null);
       }
     });
+  };
+
+  const cancelTeamDeletion = async () => {
+    if (!supabase || !team?.onlineId || !isCurrentUserOwner || !onTeamDeletionChanged) return;
+
+    setBusy(true);
+    setDeleteError("");
+    const { error: rpcError } = await supabase.rpc("cancel_team_deletion", {
+      target_team_id: team.onlineId
+    });
+    setBusy(false);
+
+    if (rpcError) {
+      setDeleteError(rpcError.message);
+      return;
+    }
+
+    onTeamDeletionChanged(team, null);
   };
 
   const createTeam = async (event) => {
@@ -694,10 +715,10 @@ export default function TeamAdminPanel({
                           <button
                             type="button"
                             disabled={busy}
-                            onClick={deleteTeam}
+                            onClick={deletionScheduledAt ? cancelTeamDeletion : scheduleTeamDeletion}
                             className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            Ta bort lag
+                            {deletionScheduledAt ? "Ångra radering" : "Ta bort lag"}
                           </button>
                         ) : (
                           <button
@@ -718,6 +739,11 @@ export default function TeamAdminPanel({
             {deleteError && (
               <div className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {deleteError}
+              </div>
+            )}
+            {deletionScheduledAt && (
+              <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                Laget raderas {new Date(deletionScheduledAt).toLocaleString("sv-SE")} om raderingen inte ångras.
               </div>
             )}
           </section>

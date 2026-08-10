@@ -41,6 +41,7 @@ const mergeWithLocalRoster = (team, membershipRole) => {
     onlineId: team.id,
     name: team.name,
     membershipRole,
+    deletionScheduledAt: team.deletion_scheduled_at || null,
     players: onlinePlayers.length > 0 ? onlinePlayers : localTeam?.players || []
   };
 };
@@ -80,7 +81,7 @@ export function useSupabaseTeams(user) {
 
       const { data, error: queryError } = await supabase
         .from("team_members")
-        .select("role, teams(id, name, slug, players(id, shirt_number, name, role, active))")
+        .select("role, teams(id, name, slug, deletion_scheduled_at, players(id, shirt_number, name, role, active))")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
 
