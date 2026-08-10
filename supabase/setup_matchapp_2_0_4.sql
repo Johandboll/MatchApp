@@ -104,6 +104,21 @@ as $$
   );
 $$;
 
+-- Keep the setup safe to rerun in an existing test project.
+drop policy if exists "members can read their teams" on public.teams;
+drop policy if exists "users can read their own team memberships" on public.team_members;
+drop policy if exists "admins can insert team memberships" on public.team_members;
+drop policy if exists "admins can update team memberships" on public.team_members;
+drop policy if exists "admins can delete team memberships" on public.team_members;
+drop policy if exists "members can read players" on public.players;
+drop policy if exists "admins can insert players" on public.players;
+drop policy if exists "admins can update players" on public.players;
+drop policy if exists "admins can delete players" on public.players;
+drop policy if exists "members can read matches" on public.matches;
+drop policy if exists "members can create matches" on public.matches;
+drop policy if exists "members can update matches" on public.matches;
+drop policy if exists "admins can delete matches" on public.matches;
+
 create policy "members can read their teams"
 on public.teams for select
 to authenticated
