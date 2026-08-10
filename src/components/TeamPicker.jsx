@@ -35,7 +35,7 @@ export default function TeamPicker({
 
     if (duplicateTeam) {
       setCreateError(
-        `Det finns redan ett lag som heter ${duplicateTeam.name}. Be en ägare eller admin i laget lägga till dig istället.`
+        `Det finns redan ett lag som heter ${duplicateTeam.name}. Be lagägaren eller en lagadmin lägga till dig istället.`
       );
       return;
     }
@@ -78,7 +78,7 @@ export default function TeamPicker({
       ? "När kontot är godkänt kan du skapa lag eller bli tillagd i ett lag."
       : hasCreateAccess
         ? "Du kan skapa ett lag här och börja lägga in spelare."
-        : "Be en ägare eller admin lägga till dig i rätt lag.";
+        : "Be lagägaren eller en lagadmin lägga till dig i rätt lag.";
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4 bg-gradient-to-b from-sky-50 via-white to-emerald-50">

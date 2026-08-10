@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const roleLabel = {
-  owner: "Ägare",
-  admin: "Admin",
-  member: "Medlem"
+  owner: "Lagägare",
+  admin: "Lagadmin",
+  member: "Användare"
 };
 
 const normalizeNameKey = (value) =>
@@ -136,7 +136,7 @@ export default function TeamAdminPanel({
 
     if (duplicateTeam) {
       setCreateTeamError(
-        `Det finns redan ett lag som heter ${duplicateTeam.name}. Be en ägare eller admin i laget lägga till dig istället.`
+        `Det finns redan ett lag som heter ${duplicateTeam.name}. Be lagägaren eller en lagadmin lägga till dig istället.`
       );
       return;
     }
@@ -567,7 +567,7 @@ export default function TeamAdminPanel({
                           {active ? "Aktivt" : "Byt till"}
                         </span>
                         <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-slate-600 ring-1 ring-slate-200">
-                          {roleLabel[item.membershipRole] || item.membershipRole || "Medlem"}
+                          {roleLabel[item.membershipRole] || item.membershipRole || "Användare"}
                         </span>
                         {!canManage && (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500">
@@ -648,7 +648,7 @@ export default function TeamAdminPanel({
         <div className="flex-1 overflow-y-auto p-4">
           {!canManageCurrentTeam && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
-              Du är medlem i det aktiva laget. Spelare och medlemmar hanteras av lagets ägare eller admin.
+              Du är användare i det aktiva laget. Spelare och medlemmar hanteras av lagägaren eller en lagadmin.
             </div>
           )}
 
@@ -657,6 +657,9 @@ export default function TeamAdminPanel({
           <section className="mb-5">
             <div className="mb-3">
               <h3 className="text-lg font-extrabold text-slate-900">Medlemmar</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Lagägare – full kontroll · Lagadmin – hanterar lag och trupp · Användare – matcher och statistik
+              </p>
             </div>
 
             {error && (
@@ -707,9 +710,9 @@ export default function TeamAdminPanel({
                           onChange={(event) => changeRole(member, event.target.value)}
                           className="rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm disabled:opacity-60"
                         >
-                          {isOwner && <option value="owner">Ägare</option>}
-                          <option value="admin">Admin</option>
-                          <option value="member">Medlem</option>
+                          {isOwner && <option value="owner">Lagägare</option>}
+                          <option value="admin">Lagadmin</option>
+                          <option value="member">Användare</option>
                         </select>
                         {isOwner && isCurrentUser ? (
                           <button
@@ -805,8 +808,8 @@ export default function TeamAdminPanel({
                 disabled={!isCurrentUserOwner}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base disabled:opacity-60"
               >
-                <option value="member">Medlem</option>
-                {isCurrentUserOwner && <option value="admin">Admin</option>}
+                <option value="member">Användare</option>
+                {isCurrentUserOwner && <option value="admin">Lagadmin</option>}
               </select>
               <button
                 type="submit"
