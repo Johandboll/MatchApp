@@ -690,20 +690,36 @@ export default function TeamAdminPanel({
                           <option value="admin">Admin</option>
                           <option value="member">Medlem</option>
                         </select>
-                        <button
-                          type="button"
-                          disabled={busy || isOwner || isCurrentUser || !isCurrentUserOwner}
-                          onClick={() => removeMember(member)}
-                          className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Ta bort
-                        </button>
+                        {isOwner && isCurrentUser ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={deleteTeam}
+                            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Ta bort lag
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy || isOwner || isCurrentUser || !isCurrentUserOwner}
+                            onClick={() => removeMember(member)}
+                            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Ta bort
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
+            {deleteError && (
+              <div className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {deleteError}
+              </div>
+            )}
           </section>
 
           <section>
@@ -954,27 +970,6 @@ export default function TeamAdminPanel({
             </>
           )}
 
-          {isCurrentUserOwner && team?.onlineId && onTeamDeleted && (
-            <section className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
-              <h3 className="text-base font-extrabold text-red-900">Radera lag</h3>
-              <p className="mt-1 text-sm text-red-800">
-                Laget och all tillhörande data raderas permanent. Åtgärden kan inte ångras.
-              </p>
-              {deleteError && (
-                <div className="mt-3 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm text-red-700">
-                  {deleteError}
-                </div>
-              )}
-              <button
-                type="button"
-                disabled={busy}
-                onClick={deleteTeam}
-                className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Radera lag
-              </button>
-            </section>
-          )}
         </div>
       </div>
     </div>
