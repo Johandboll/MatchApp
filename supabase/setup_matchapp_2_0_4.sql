@@ -659,6 +659,30 @@ begin
 end;
 $$;
 
+create or replace function public.delete_team_for_current_user(target_team_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Du måste vara inloggad för att radera lag.';
+  end if;
+
+  if not public.is_team_owner(target_team_id) then
+    raise exception 'Endast lagets ägare kan radera laget.';
+  end if;
+
+  delete from public.teams
+  where id = target_team_id;
+
+  if not found then
+    raise exception 'Laget kunde inte hittas.';
+  end if;
+end;
+$$;
+
 revoke execute on function public.is_system_admin() from public, anon;
 grant execute on function public.is_system_admin() to authenticated;
 
@@ -1091,6 +1115,9 @@ grant execute on function public.is_team_owner(uuid) to authenticated;
 
 revoke execute on function public.create_team_for_current_user(text) from public, anon;
 grant execute on function public.create_team_for_current_user(text) to authenticated;
+
+revoke execute on function public.delete_team_for_current_user(uuid) from public, anon;
+grant execute on function public.delete_team_for_current_user(uuid) to authenticated;
 
 revoke execute on function public.is_system_admin() from public, anon;
 grant execute on function public.is_system_admin() to authenticated;

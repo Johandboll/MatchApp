@@ -1418,6 +1418,19 @@ export default function App() {
     [onlineTeams, selectedTeam]
   );
 
+  const handleTeamDeleted = useCallback(
+    (deletedTeam) => {
+      if (!deletedTeam?.id) return;
+
+      onlineTeams.setTeams((prev) => prev.filter((team) => team.id !== deletedTeam.id));
+      setTeamAdminOpen(false);
+      performTeamSelection(null);
+      accountAccess.refresh();
+      showToast("Lag raderat");
+    },
+    [accountAccess, onlineTeams, performTeamSelection, showToast]
+  );
+
   const canStartMatch =
     Boolean(matchInfo?.date) && Boolean(matchInfo?.opponent) && Boolean(matchInfo?.location);
 
@@ -1760,6 +1773,7 @@ export default function App() {
         onSelectTeam={handleSelectTeam}
         accountAccess={accountAccess}
         onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
+        onTeamDeleted={handleTeamDeleted}
         currentUser={auth.user}
         onClose={() => setTeamAdminOpen(false)}
         onToast={showToast}
