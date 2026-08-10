@@ -1433,6 +1433,27 @@ export default function App() {
     [onlineTeams, showToast]
   );
 
+  const handleTeamMembershipChanged = useCallback(
+    (changedTeam, membershipRole) => {
+      if (!changedTeam?.id) return;
+
+      if (!membershipRole) {
+        onlineTeams.setTeams((prev) => prev.filter((team) => team.id !== changedTeam.id));
+        setTeamAdminOpen(false);
+        performTeamSelection(null);
+      } else {
+        onlineTeams.setTeams((prev) =>
+          prev.map((team) =>
+            team.id === changedTeam.id ? { ...team, membershipRole } : team
+          )
+        );
+      }
+
+      accountAccess.refresh();
+    },
+    [accountAccess, onlineTeams, performTeamSelection]
+  );
+
   const canStartMatch =
     Boolean(matchInfo?.date) && Boolean(matchInfo?.opponent) && Boolean(matchInfo?.location);
 
@@ -1776,6 +1797,7 @@ export default function App() {
         accountAccess={accountAccess}
         onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
         onTeamDeletionChanged={handleTeamDeletionChanged}
+        onTeamMembershipChanged={handleTeamMembershipChanged}
         currentUser={auth.user}
         onClose={() => setTeamAdminOpen(false)}
         onToast={showToast}

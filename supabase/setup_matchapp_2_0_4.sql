@@ -136,7 +136,7 @@ using (user_id = (select auth.uid()));
 create policy "admins can insert team memberships"
 on public.team_members for insert
 to authenticated
-with check (public.is_team_admin(team_id));
+with check (public.is_team_admin(team_id) and role <> 'owner');
 
 create policy "admins can update team memberships"
 on public.team_members for update
@@ -1009,6 +1009,104 @@ begin
 end;
 $$;
 
+create unique index if not exists team_members_one_owner_per_team
+on public.team_members (team_id)
+where role = 'owner';
+
+create or replace function public.transfer_team_ownership(
+  target_team_id uuid,
+  new_owner_user_id uuid,
+  previous_owner_role text default 'admin'
+)
+returns table (
+  user_id uuid,
+  display_name text,
+  email text,
+  role text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  clean_previous_role text;
+begin
+  if not public.is_team_owner(target_team_id) then
+    raise exception 'Endast lagägaren kan överlåta ägarskapet.';
+  end if;
+
+  if new_owner_user_id = auth.uid() then
+    raise exception 'Välj en annan medlem som ny lagägare.';
+  end if;
+
+  if not exists (
+    select 1 from public.team_members tm
+    where tm.team_id = target_team_id
+      and tm.user_id = new_owner_user_id
+      and tm.role in ('admin', 'member')
+  ) then
+    raise exception 'Den nya lagägaren måste redan vara medlem i laget.';
+  end if;
+
+  clean_previous_role := lower(trim(coalesce(previous_owner_role, 'admin')));
+  if clean_previous_role not in ('admin', 'member', 'leave') then
+    raise exception 'Välj Lagadmin, Användare eller Lämna laget.';
+  end if;
+
+  if clean_previous_role = 'leave' then
+    delete from public.team_members tm
+    where tm.team_id = target_team_id
+      and tm.user_id = auth.uid()
+      and tm.role = 'owner';
+  else
+    update public.team_members tm
+    set role = clean_previous_role
+    where tm.team_id = target_team_id
+      and tm.user_id = auth.uid()
+      and tm.role = 'owner';
+  end if;
+
+  update public.team_members tm
+  set role = 'owner'
+  where tm.team_id = target_team_id
+    and tm.user_id = new_owner_user_id;
+
+  if not found then
+    raise exception 'Ägarskapet kunde inte överlåtas.';
+  end if;
+
+  return query
+  select lm.user_id, lm.display_name, lm.email, lm.role, lm.created_at
+  from public.list_team_members(target_team_id) lm;
+end;
+$$;
+
+create or replace function public.leave_team(target_team_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Du måste vara inloggad för att lämna laget.';
+  end if;
+
+  if public.is_team_owner(target_team_id) then
+    raise exception 'Lagägaren måste först överlåta ägarskapet.';
+  end if;
+
+  delete from public.team_members tm
+  where tm.team_id = target_team_id
+    and tm.user_id = auth.uid();
+
+  if not found then
+    raise exception 'Du är inte medlem i laget.';
+  end if;
+end;
+$$;
+
 -- ============================================================
 -- supabase/team_player_functions.sql
 -- ============================================================
@@ -1216,6 +1314,12 @@ grant execute on function public.update_team_member_role(uuid, uuid, text) to au
 
 revoke execute on function public.remove_team_member(uuid, uuid) from public, anon;
 grant execute on function public.remove_team_member(uuid, uuid) to authenticated;
+
+revoke execute on function public.transfer_team_ownership(uuid, uuid, text) from public, anon;
+grant execute on function public.transfer_team_ownership(uuid, uuid, text) to authenticated;
+
+revoke execute on function public.leave_team(uuid) from public, anon;
+grant execute on function public.leave_team(uuid) to authenticated;
 
 revoke execute on function public.list_team_players(uuid) from public, anon;
 grant execute on function public.list_team_players(uuid) to authenticated;

@@ -38,6 +38,7 @@ export default function TeamAdminPanel({
   accountAccess,
   onTeamCreated,
   onTeamDeletionChanged,
+  onTeamMembershipChanged,
   currentUser,
   onClose,
   onToast,
@@ -70,6 +71,8 @@ export default function TeamAdminPanel({
   const [createTeamError, setCreateTeamError] = useState("");
   const [playerError, setPlayerError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [transferTarget, setTransferTarget] = useState(null);
+  const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
   const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
@@ -349,6 +352,55 @@ export default function TeamAdminPanel({
     setMembers(data || []);
     setBusy(false);
     onToast?.("Medlem borttagen");
+  };
+
+  const leaveTeam = () => {
+    onConfirm?.({
+      title: "Lämna laget?",
+      message: `Du förlorar åtkomsten till ${team.name}.`,
+      confirmText: "Lämna laget",
+      cancelText: "Avbryt",
+      variant: "danger",
+      onConfirm: async () => {
+        setBusy(true);
+        setError("");
+        const { error: mutationError } = await supabase.rpc("leave_team", {
+          target_team_id: team.onlineId
+        });
+        setBusy(false);
+
+        if (mutationError) {
+          setError(mutationError.message);
+          return;
+        }
+
+        onTeamMembershipChanged?.(team, null);
+        onToast?.("Du har lämnat laget");
+      }
+    });
+  };
+
+  const transferOwnership = async () => {
+    if (!transferTarget || !isCurrentUserOwner) return;
+
+    setBusy(true);
+    setError("");
+    const { data, error: mutationError } = await supabase.rpc("transfer_team_ownership", {
+      target_team_id: team.onlineId,
+      new_owner_user_id: transferTarget.user_id,
+      previous_owner_role: previousOwnerRole
+    });
+    setBusy(false);
+
+    if (mutationError) {
+      setError(mutationError.message);
+      return;
+    }
+
+    setMembers(data || []);
+    setTransferTarget(null);
+    onTeamMembershipChanged?.(team, previousOwnerRole === "leave" ? null : previousOwnerRole);
+    onToast?.("Ägarskapet är överlåtet");
   };
 
   const resetPlayerForm = () => {
@@ -648,7 +700,15 @@ export default function TeamAdminPanel({
         <div className="flex-1 overflow-y-auto p-4">
           {!canManageCurrentTeam && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
-              Du är användare i det aktiva laget. Spelare och medlemmar hanteras av lagägaren eller en lagadmin.
+              <p>Du är användare i det aktiva laget. Spelare och medlemmar hanteras av lagägaren eller en lagadmin.</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={leaveTeam}
+                className="mt-3 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+              >
+                Lämna laget
+              </button>
             </div>
           )}
 
@@ -715,23 +775,49 @@ export default function TeamAdminPanel({
                           <option value="member">Användare</option>
                         </select>
                         {isOwner && isCurrentUser ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={deletionScheduledAt ? cancelTeamDeletion : scheduleTeamDeletion}
+                              className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {deletionScheduledAt ? "Ångra radering" : "Ta bort lag"}
+                            </button>
+                          </div>
+                        ) : isCurrentUser ? (
                           <button
                             type="button"
                             disabled={busy}
-                            onClick={deletionScheduledAt ? cancelTeamDeletion : scheduleTeamDeletion}
-                            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={leaveTeam}
+                            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:opacity-50"
                           >
-                            {deletionScheduledAt ? "Ångra radering" : "Ta bort lag"}
+                            Lämna laget
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={busy || isOwner || isCurrentUser || !isCurrentUserOwner}
-                            onClick={() => removeMember(member)}
-                            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Ta bort
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            {isCurrentUserOwner && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => {
+                                  setTransferTarget(member);
+                                  setPreviousOwnerRole("admin");
+                                }}
+                                className="rounded-xl border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-700 disabled:opacity-50"
+                              >
+                                Gör till lagägare
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={busy || isOwner || !isCurrentUserOwner}
+                              onClick={() => removeMember(member)}
+                              className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Ta bort från laget
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -747,6 +833,40 @@ export default function TeamAdminPanel({
             {deletionScheduledAt && (
               <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
                 Laget raderas {new Date(deletionScheduledAt).toLocaleString("sv-SE")} om raderingen inte ångras.
+              </div>
+            )}
+            {transferTarget && (
+              <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3">
+                <h4 className="font-extrabold text-slate-900">Överlåt ägarskapet till {transferTarget.display_name || transferTarget.email}</h4>
+                <p className="mt-1 text-sm text-slate-600">Välj vad som ska hända med din egen åtkomst efter överlåtelsen.</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    value={previousOwnerRole}
+                    onChange={(event) => setPreviousOwnerRole(event.target.value)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    aria-label="Din roll efter överlåtelsen"
+                  >
+                    <option value="admin">Bli Lagadmin</option>
+                    <option value="member">Bli Användare</option>
+                    <option value="leave">Lämna laget</option>
+                  </select>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={transferOwnership}
+                    className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    Bekräfta överlåtelse
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setTransferTarget(null)}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 disabled:opacity-50"
+                  >
+                    Avbryt
+                  </button>
+                </div>
               </div>
             )}
           </section>

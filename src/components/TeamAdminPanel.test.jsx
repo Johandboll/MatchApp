@@ -19,7 +19,8 @@ const players = [
   { id: "player-2", shirt_number: 12, name: "Bea", role: "goalkeeper", active: true }
 ];
 const members = [
-  { user_id: owner.id, display_name: "Ägaren", email: owner.email, role: "owner" }
+  { user_id: owner.id, display_name: "Ägaren", email: owner.email, role: "owner" },
+  { user_id: "member-1", display_name: "Medlemmen", email: "member@example.com", role: "member" }
 ];
 
 const renderPanel = (overrides = {}) => render(
@@ -36,6 +37,7 @@ const renderPanel = (overrides = {}) => render(
     onPlayersChanged={jest.fn()}
     onConfirm={jest.fn()}
     onTeamDeletionChanged={jest.fn()}
+    onTeamMembershipChanged={jest.fn()}
     {...overrides}
   />
 );
@@ -87,4 +89,26 @@ test("shows undo and deletion time for a scheduled team", async () => {
 
   expect(await screen.findByRole("button", { name: "Ångra radering" })).toBeVisible();
   expect(screen.getByText(/Laget raderas/)).toBeVisible();
+});
+
+test("lets the owner choose a successor and their own next role", async () => {
+  renderPanel();
+  fireEvent.click(await screen.findByRole("button", { name: "Medlemmar" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Gör till lagägare" }));
+
+  expect(screen.getByText(/Överlåt ägarskapet till Medlemmen/)).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Din roll efter överlåtelsen" })).toHaveValue("admin");
+  expect(screen.getByRole("option", { name: "Bli Lagadmin" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Bli Användare" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Lämna laget" })).toBeInTheDocument();
+});
+
+test("shows leave team to a regular user", async () => {
+  renderPanel({
+    currentUser: { id: "member-1", email: "member@example.com" },
+    currentUserRole: "member"
+  });
+
+  expect(await screen.findByRole("button", { name: "Lämna laget" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Ta bort lag" })).not.toBeInTheDocument();
 });
