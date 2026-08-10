@@ -40,6 +40,7 @@ export default function AuthView({ appVersion }) {
             email: cleanEmail,
             password,
             options: {
+              emailRedirectTo: redirectTo,
               data: {
                 display_name: cleanDisplayName,
                 club_name: cleanClubName,
