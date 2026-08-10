@@ -822,11 +822,10 @@ export default function TeamAdminPanel({
 
           {canManageCurrentTeam && tab === "players" && (
             <>
+              {!playerForm.id && (
               <section className="mb-5">
                 <div className="mb-3">
-                  <h3 className="text-lg font-extrabold text-slate-900">
-                    {playerForm.id ? "Ändra spelare" : "Lägg till spelare"}
-                  </h3>
+                  <h3 className="text-lg font-extrabold text-slate-900">Lägg till spelare</h3>
                 </div>
                 <form onSubmit={savePlayer} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[120px_1fr_170px_auto]">
                   <input
@@ -866,21 +865,12 @@ export default function TeamAdminPanel({
                       disabled={busy}
                       className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {playerForm.id ? "Spara" : "Lägg till"}
+                      Lägg till
                     </button>
-                    {playerForm.id && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={resetPlayerForm}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 disabled:opacity-50"
-                      >
-                        Avbryt
-                      </button>
-                    )}
                   </div>
                 </form>
               </section>
+              )}
 
               {(missingPlayersFromMatches.length > 0 || blockedPlayersFromMatches.length > 0) && (
                 <section className="mb-5 rounded-xl border border-sky-100 bg-sky-50 p-3">
@@ -948,11 +938,67 @@ export default function TeamAdminPanel({
                   ) : players.length === 0 ? (
                     <div className="px-3 py-4 text-sm text-slate-500">Inga spelare tillagda ännu.</div>
                   ) : (
-                    players.map((player) => (
+                    players.map((player) => {
+                      const isEditing = playerForm.id === player.id;
+                      return (
                       <div
                         key={player.id}
-                        className={`grid grid-cols-1 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center ${player.active ? "bg-white" : "bg-slate-50"}`}
+                        className={`border-b border-slate-100 px-3 py-3 last:border-b-0 ${isEditing ? "bg-sky-50" : player.active ? "bg-white" : "bg-slate-50"}`}
                       >
+                        {isEditing ? (
+                          <form onSubmit={savePlayer} className="grid grid-cols-1 gap-2 sm:grid-cols-[120px_1fr_170px_auto] sm:items-center">
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={playerForm.shirtNumber}
+                              onChange={(event) =>
+                                setPlayerForm((prev) => ({ ...prev, shirtNumber: event.target.value }))
+                              }
+                              aria-label="Spelarnummer"
+                              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              required
+                            />
+                            <input
+                              type="text"
+                              value={playerForm.name}
+                              onChange={(event) =>
+                                setPlayerForm((prev) => ({ ...prev, name: event.target.value }))
+                              }
+                              aria-label="Spelarnamn"
+                              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              required
+                            />
+                            <select
+                              value={playerForm.role}
+                              onChange={(event) =>
+                                setPlayerForm((prev) => ({ ...prev, role: event.target.value }))
+                              }
+                              aria-label="Spelartyp"
+                              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base"
+                            >
+                              <option value="field">Utespelare</option>
+                              <option value="goalkeeper">Målvakt</option>
+                            </select>
+                            <div className="flex gap-2">
+                              <button
+                                type="submit"
+                                disabled={busy}
+                                className="rounded-xl bg-sky-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                              >
+                                Spara
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={resetPlayerForm}
+                                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50"
+                              >
+                                Avbryt
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
                         <div className="min-w-0 flex-1">
                           <div className={`flex items-center gap-2 text-sm font-semibold ${player.active ? "text-slate-900" : "text-slate-500"}`}>
                             <span className="inline-flex min-w-10 justify-center rounded-lg bg-slate-100 px-2 py-1 text-xs font-extrabold text-slate-700">
@@ -988,8 +1034,11 @@ export default function TeamAdminPanel({
                             {player.active ? "Inaktivera" : "Aktivera"}
                           </button>
                         </div>
+                        </div>
+                        )}
                       </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </section>
