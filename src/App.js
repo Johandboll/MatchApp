@@ -230,11 +230,17 @@ export default function App() {
 
   useEffect(() => {
     if (selectedTeamId === EXTERNAL_TEAM_ID || teamFileFromQuery) return;
-    if (availableTeams.length === 0) return;
     if (selectedTeamId && selectedTeam) return;
 
-    setSelectedTeamId(availableTeams[0].id);
-  }, [availableTeams, selectedTeam, selectedTeamId, teamFileFromQuery]);
+    if (availableTeams.length > 0) {
+      setSelectedTeamId(availableTeams[0].id);
+      return;
+    }
+
+    if (isSupabaseConfigured && auth.user && !onlineTeams.loading && selectedTeamId) {
+      setSelectedTeamId(null);
+    }
+  }, [auth.user, availableTeams, onlineTeams.loading, selectedTeam, selectedTeamId, teamFileFromQuery]);
 
   const canDeleteFromSelectedTeam =
     !selectedTeam?.onlineId || selectedTeam?.membershipRole === "owner";
