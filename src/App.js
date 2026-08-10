@@ -1386,10 +1386,11 @@ export default function App() {
 
       onlineTeams.setTeams((prev) => [...prev, nextTeam]);
       accountAccess.refresh();
-      handleSelectTeam(nextTeam.id);
+      performTeamSelection(nextTeam.id);
+      setTeamAdminOpen(true);
       showToast("Lag skapat");
     },
-    [accountAccess, handleSelectTeam, onlineTeams, showToast]
+    [accountAccess, onlineTeams, performTeamSelection, showToast]
   );
 
   const handleTeamPlayersChanged = useCallback(
