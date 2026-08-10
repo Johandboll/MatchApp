@@ -15,6 +15,15 @@ const normalizeNameKey = (value) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+const normalizeTeamName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 const playerShirtNumber = (player) => {
   const number = Number(player?.shirtNumber ?? player?.nr ?? player?.shirt_number);
   return Number.isFinite(number) ? number : "";
@@ -23,6 +32,11 @@ const playerShirtNumber = (player) => {
 export default function TeamAdminPanel({
   open,
   team,
+  teams = [],
+  selectedTeamId,
+  onSelectTeam,
+  accountAccess,
+  onTeamCreated,
   currentUser,
   onClose,
   onToast,
@@ -40,6 +54,7 @@ export default function TeamAdminPanel({
   const [memberSearchLoading, setMemberSearchLoading] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [role, setRole] = useState("member");
+  const [newTeamName, setNewTeamName] = useState("");
   const [playerForm, setPlayerForm] = useState({
     id: null,
     shirtNumber: "",
@@ -49,11 +64,61 @@ export default function TeamAdminPanel({
   const [loading, setLoading] = useState(false);
   const [playersLoading, setPlayersLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [createTeamBusy, setCreateTeamBusy] = useState(false);
   const [error, setError] = useState("");
+  const [createTeamError, setCreateTeamError] = useState("");
   const [playerError, setPlayerError] = useState("");
+  const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
+  const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
+  const createdTeamCount = Number(accountAccess?.createdTeamCount || 0);
+  const teamCreateLimit = Number(accountAccess?.teamCreateLimit || 0);
 
-  const canLoad = open && supabase && team?.onlineId;
+  const canLoad = open && supabase && team?.onlineId && canManageCurrentTeam;
+
+  const createTeam = async (event) => {
+    event.preventDefault();
+    const cleanTeamName = newTeamName.trim();
+    if (!cleanTeamName || !supabase || !canCreateTeam) return;
+
+    const wantedSlug = normalizeTeamName(cleanTeamName);
+    const duplicateTeam = teams.find((item) => normalizeTeamName(item.name || item.id) === wantedSlug);
+
+    if (duplicateTeam) {
+      setCreateTeamError(
+        `Det finns redan ett lag som heter ${duplicateTeam.name}. Be en ägare eller admin i laget lägga till dig istället.`
+      );
+      return;
+    }
+
+    setCreateTeamBusy(true);
+    setCreateTeamError("");
+
+    const { data, error: rpcError } = await supabase.rpc("create_team_for_current_user", {
+      team_name: cleanTeamName
+    });
+
+    if (rpcError) {
+      setCreateTeamError(rpcError.message);
+      setCreateTeamBusy(false);
+      return;
+    }
+
+    const createdTeam = Array.isArray(data) ? data[0] : data;
+    setNewTeamName("");
+    setCreateTeamBusy(false);
+    onTeamCreated?.(createdTeam);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setEmail("");
+    setMemberCandidates([]);
+    setSelectedCandidate(null);
+    setRole("member");
+    setCreateTeamError("");
+    resetPlayerForm();
+  }, [open, team?.id]);
 
   const loadMembers = useCallback(async () => {
     if (!canLoad) return;
@@ -393,7 +458,7 @@ export default function TeamAdminPanel({
       <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lagadmin</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lag</div>
             <h2 className="text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -415,26 +480,129 @@ export default function TeamAdminPanel({
         </div>
 
         <div className="border-b border-slate-200 px-4 pt-3">
-          <div className="grid max-w-md grid-cols-2 overflow-hidden rounded-xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setTab("players")}
-              className={`px-4 py-2 text-sm font-bold ${tab === "players" ? "bg-sky-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
-            >
-              Spelare
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("members")}
-              className={`px-4 py-2 text-sm font-bold ${tab === "members" ? "bg-sky-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
-            >
-              Medlemmar
-            </button>
-          </div>
+          {teams.length > 0 && (
+            <section className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Mina lag</h3>
+                  <p className="text-xs text-slate-500">Aktivt lag styr matchstart och säsong.</p>
+                </div>
+                <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                  {teams.length} lag
+                </span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {teams.map((item) => {
+                  const active = item.id === selectedTeamId;
+                  const canManage = ["owner", "admin"].includes(item.membershipRole);
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        if (!active) onSelectTeam?.(item.id);
+                      }}
+                      className={`min-w-[12rem] rounded-xl border px-3 py-2 text-left text-sm transition ${
+                        active
+                          ? "border-sky-300 bg-sky-50 text-sky-900"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="truncate font-extrabold">{item.name}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                          active ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600"
+                        }`}>
+                          {active ? "Aktivt" : "Byt till"}
+                        </span>
+                        <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-slate-600 ring-1 ring-slate-200">
+                          {roleLabel[item.membershipRole] || item.membershipRole || "Medlem"}
+                        </span>
+                        {!canManage && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500">
+                            Läs/registrera
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {onTeamCreated && (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900">Skapa nytt lag</h3>
+                      <p className="text-xs text-slate-500">
+                        Du har skapat {createdTeamCount} av {teamCreateLimit} tillåtna lag.
+                      </p>
+                    </div>
+                  </div>
+
+                  {createTeamError && (
+                    <div className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {createTeamError}
+                    </div>
+                  )}
+
+                  {canCreateTeam ? (
+                    <form onSubmit={createTeam} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                      <input
+                        type="text"
+                        value={newTeamName}
+                        onChange={(event) => setNewTeamName(event.target.value)}
+                        placeholder="Lagnamn"
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={createTeamBusy}
+                        className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {createTeamBusy ? "Skapar..." : "Skapa lag"}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      Laggränsen är uppnådd eller kontot saknar behörighet att skapa lag.
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {canManageCurrentTeam && (
+            <div className="grid max-w-md grid-cols-2 overflow-hidden rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setTab("players")}
+                className={`px-4 py-2 text-sm font-bold ${tab === "players" ? "bg-sky-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+              >
+                Spelare
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("members")}
+                className={`px-4 py-2 text-sm font-bold ${tab === "members" ? "bg-sky-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+              >
+                Medlemmar
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {tab === "members" && (
+          {!canManageCurrentTeam && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+              Du är medlem i det aktiva laget. Spelare och medlemmar hanteras av lagets ägare eller admin.
+            </div>
+          )}
+
+          {canManageCurrentTeam && tab === "members" && (
           <>
           <section className="mb-5">
             <div className="mb-3">
@@ -581,7 +749,7 @@ export default function TeamAdminPanel({
           </>
           )}
 
-          {tab === "players" && (
+          {canManageCurrentTeam && tab === "players" && (
             <>
               <section className="mb-5">
                 <div className="mb-3">

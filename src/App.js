@@ -7,12 +7,14 @@ import MatchSetup from "./components/MatchSetup";
 import MatchSession from "./components/MatchSession";
 import SeasonCenter from "./components/SeasonCenter";
 import TeamAdminPanel from "./components/TeamAdminPanel";
+import SystemAdminPanel from "./components/SystemAdminPanel";
 import ConfirmDialog from "./components/ConfirmDialog";
 import AppUpdatePrompt from "./components/AppUpdatePrompt";
 import PrivacyNoticeModal, { PRIVACY_NOTICE_VERSION } from "./components/PrivacyNoticeModal";
 import { getChangelogTooltip } from "./changelog";
 import { APP_VERSION } from "./config/appVersion";
 import { useAppUpdate } from "./hooks/useAppUpdate";
+import { useAccountAccess } from "./hooks/useAccountAccess";
 import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import { useSupabaseMatches } from "./hooks/useSupabaseMatches";
 import { useSupabaseTeams } from "./hooks/useSupabaseTeams";
@@ -27,7 +29,6 @@ import {
   buildSeasonOptions,
   buildSeasonKpis,
   buildSeasonSummary,
-  clearTeamQueryParam,
   emptyCounters,
   eventLabel,
   filterSeasonMatchesByTeam,
@@ -71,20 +72,6 @@ function getTeamFileFromQuery() {
   } catch {
     return null;
   }
-}
-
-function getClubReturnPathFromTeamFile(teamFile) {
-  if (!teamFile) return null;
-
-  try {
-    const cleanPath = String(teamFile).split("?")[0].split("#")[0];
-    const parts = cleanPath.split("/").filter(Boolean);
-    if (parts.length >= 2) {
-      return `/${parts[0]}/`;
-    }
-  } catch {}
-
-  return null;
 }
 
 function loadPendingOnlineMatches() {
@@ -163,13 +150,13 @@ async function markPrivacyNoticeSeenInSupabase(user) {
 export default function App() {
   const auth = useSupabaseAuth();
   const onlineTeams = useSupabaseTeams(auth.user);
+  const accountAccess = useAccountAccess(auth.user);
   const appUpdate = useAppUpdate();
   const saved = useMemo(() => loadSaved(), []);
   const whatsNew = useWhatsNew();
   const toastTimeoutRef = useRef(null);
 
   const teamFileFromQuery = getTeamFileFromQuery();
-  const clubReturnPath = getClubReturnPathFromTeamFile(teamFileFromQuery);
   const [externalTeamData, setExternalTeamData] = useState(null);
   const [externalTeamLoading, setExternalTeamLoading] = useState(Boolean(teamFileFromQuery));
   const [selectedSeason, setSelectedSeason] = useState(() => {
@@ -224,6 +211,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState(() => saved?.viewMode || "match");
   const [seasonOpen, setSeasonOpen] = useState(false);
   const [teamAdminOpen, setTeamAdminOpen] = useState(false);
+  const [systemAdminOpen, setSystemAdminOpen] = useState(false);
   const [privacyNoticeOpen, setPrivacyNoticeOpen] = useState(false);
   const [privacyNoticeRequired, setPrivacyNoticeRequired] = useState(false);
   const [toast, setToast] = useState(null);
@@ -239,8 +227,15 @@ export default function App() {
     if (selectedTeamId === EXTERNAL_TEAM_ID) return externalTeamData;
     return availableTeams.find((team) => team.id === selectedTeamId) || null;
   }, [availableTeams, selectedTeamId, externalTeamData]);
-  const canManageSelectedTeam =
-    !selectedTeam?.onlineId || ["owner", "admin"].includes(selectedTeam?.membershipRole);
+
+  useEffect(() => {
+    if (selectedTeamId === EXTERNAL_TEAM_ID || teamFileFromQuery) return;
+    if (availableTeams.length === 0) return;
+    if (selectedTeamId && selectedTeam) return;
+
+    setSelectedTeamId(availableTeams[0].id);
+  }, [availableTeams, selectedTeam, selectedTeamId, teamFileFromQuery]);
+
   const canDeleteFromSelectedTeam =
     !selectedTeam?.onlineId || selectedTeam?.membershipRole === "owner";
   const onlineMatches = useSupabaseMatches(auth.user, selectedTeam);
@@ -371,6 +366,27 @@ export default function App() {
     const active = (cupEnabled || cupPanelOpen) && (cupName || "").trim();
     return active ? `${cupName.trim()}${cupPhase ? ` (${cupPhase})` : ""}` : "";
   }, [cupEnabled, cupPanelOpen, cupName, cupPhase]);
+  const hasStartedMatchSetup = useMemo(() => {
+    const hasMatchInfo =
+      Boolean((matchInfo?.date || "").trim()) ||
+      Boolean((matchInfo?.opponent || "").trim()) ||
+      Boolean((matchInfo?.location || "").trim());
+    const hasCupInfo =
+      Boolean(cupEnabled) ||
+      Boolean((cupName || "").trim()) ||
+      Boolean((cupPhase || "").trim());
+
+    return step === 1 && (selectedPlayers.length > 0 || hasMatchInfo || hasCupInfo);
+  }, [
+    cupEnabled,
+    cupName,
+    cupPhase,
+    matchInfo?.date,
+    matchInfo?.location,
+    matchInfo?.opponent,
+    selectedPlayers.length,
+    step
+  ]);
 
   const showToast = useCallback((text) => {
     setToast({ text });
@@ -580,6 +596,95 @@ export default function App() {
         : [...prev, playerId]
     );
   }, []);
+
+  const playerHasMatchActivity = useCallback(
+    (playerRef) => {
+      const player = findPlayerByRef(playerRef);
+      const matchesRef = (ref) => {
+        if (ref === undefined || ref === null || ref === "") return false;
+        if (player) return playerMatchesRef(player, ref);
+        return String(ref) === String(playerRef);
+      };
+
+      const hasHistory = history.some((item) => matchesRef(item?.playerId) || matchesRef(item?.nr));
+      if (hasHistory) return true;
+
+      const refs = Array.from(
+        new Set(
+          [
+            playerRef,
+            player?.id,
+            player?.nr,
+            player?.shirtNumber
+          ]
+            .filter((value) => value !== undefined && value !== null && value !== "")
+            .map((value) => String(value))
+        )
+      );
+      const playerStats = refs.map((ref) => stats?.[ref]).find(Boolean);
+      if (!playerStats) return false;
+
+      return Object.entries(playerStats).some(([key, value]) => {
+        if (key === "byHalf") {
+          return Object.values(value || {}).some((halfStats) =>
+            Object.values(halfStats || {}).some((count) => Number(count) > 0)
+          );
+        }
+
+        return Number(value) > 0;
+      });
+    },
+    [findPlayerByRef, history, playerMatchesRef, stats]
+  );
+
+  const toggleMatchPlayer = useCallback(
+    (playerId) => {
+      const player = findPlayerByRef(playerId);
+      const isSelected = selectedPlayers.some((ref) =>
+        player ? playerMatchesRef(player, ref) : String(ref) === String(playerId)
+      );
+
+      if (!isSelected) {
+        setSelectedPlayers((prev) => [...prev, playerId]);
+        setStats((prev) => ({
+          ...prev,
+          [playerId]: {
+            ...emptyCounters(),
+            byHalf: { 1: emptyCounters(), 2: emptyCounters() }
+          }
+        }));
+        showToast(`Lade till #${getPlayerShirtNumber(player) ?? ""} ${player?.name || ""}`);
+        return;
+      }
+
+      if (playerHasMatchActivity(playerId)) {
+        showToast("Spelare med händelser kan inte tas bort från matchen");
+        return;
+      }
+
+      setSelectedPlayers((prev) =>
+        prev.filter((ref) => (player ? !playerMatchesRef(player, ref) : String(ref) !== String(playerId)))
+      );
+      setStats((prev) => {
+        const next = { ...(prev || {}) };
+        [playerId, player?.id, player?.nr, player?.shirtNumber]
+          .filter((value) => value !== undefined && value !== null && value !== "")
+          .forEach((ref) => {
+            delete next[ref];
+          });
+        return next;
+      });
+      showToast(`Tog bort #${getPlayerShirtNumber(player) ?? ""} ${player?.name || ""}`);
+    },
+    [
+      findPlayerByRef,
+      getPlayerShirtNumber,
+      playerMatchesRef,
+      playerHasMatchActivity,
+      selectedPlayers,
+      showToast
+    ]
+  );
 
   const handleMatchInfoChange = useCallback((event) => {
     const { name, value } = event.target;
@@ -1194,33 +1299,72 @@ export default function App() {
     ]
   );
 
-  const handleChangeTeam = useCallback(() => {
-    requestConfirm({
-      title: "Byta lag?",
-      message: "All pågående matchdata raderas när du byter lag.",
-      confirmText: "Byt lag",
-      cancelText: "Avbryt",
-      variant: "danger",
-      onConfirm: () => {
-        closeConfirm();
-        localStorage.removeItem(SELECTED_TEAM_KEY);
-        setExternalTeamData(null);
-
-        if (teamFileFromQuery && clubReturnPath) {
-          window.location.href = clubReturnPath;
-          return;
-        }
-
-        clearTeamQueryParam();
-        window.location.reload();
-      }
-    });
-  }, [closeConfirm, clubReturnPath, requestConfirm, teamFileFromQuery]);
-
   const handleSignOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
   }, []);
+
+  const performTeamSelection = useCallback((teamId) => {
+    setExternalTeamData(null);
+    setSelectedTeamId(teamId);
+    setSelectedPlayers([]);
+    setStats({});
+    setHistory([]);
+    setMatchInfo({ date: "", opponent: "", location: "" });
+    setCurrentHalf(1);
+    setViewMode("match");
+    setStep(1);
+  }, []);
+
+  const handleSelectTeam = useCallback((teamId) => {
+    if (!teamId || teamId === selectedTeamId) return;
+
+    const hasOngoingMatch = step === 2 && selectedPlayers.length > 0;
+    if (!hasOngoingMatch) {
+      if (hasStartedMatchSetup) {
+        requestConfirm({
+          title: "Byta lag?",
+          message: "Du har börjat sätta upp en match. Uppställning och matchinfo försvinner om du byter lag nu.",
+          confirmText: "Byt lag",
+          cancelText: "Avbryt",
+          variant: "danger",
+          onConfirm: () => {
+            performTeamSelection(teamId);
+          }
+        });
+        return;
+      }
+
+      performTeamSelection(teamId);
+      return;
+    }
+
+    requestConfirm({
+      title: "Byta lag?",
+      message: `Matchen (${matchInfo?.date || "-"} vs ${matchInfo?.opponent || "-"}) är igång. Vill du spara den i säsongen innan du byter lag?`,
+      confirmText: "Spara och byt",
+      secondaryText: "Byt utan att spara",
+      cancelText: "Avbryt",
+      variant: "danger",
+      onConfirm: async () => {
+        await saveCurrentMatchToSeason();
+        performTeamSelection(teamId);
+      },
+      onSecondary: () => {
+        performTeamSelection(teamId);
+      }
+    });
+  }, [
+    matchInfo?.date,
+    matchInfo?.opponent,
+    hasStartedMatchSetup,
+    performTeamSelection,
+    requestConfirm,
+    saveCurrentMatchToSeason,
+    selectedPlayers.length,
+    selectedTeamId,
+    step
+  ]);
 
   const handleTeamCreated = useCallback(
     (createdTeam) => {
@@ -1235,10 +1379,11 @@ export default function App() {
       };
 
       onlineTeams.setTeams((prev) => [...prev, nextTeam]);
-      setSelectedTeamId(nextTeam.id);
+      accountAccess.refresh();
+      handleSelectTeam(nextTeam.id);
       showToast("Lag skapat");
     },
-    [onlineTeams, showToast]
+    [accountAccess, handleSelectTeam, onlineTeams, showToast]
   );
 
   const handleTeamPlayersChanged = useCallback(
@@ -1300,6 +1445,17 @@ export default function App() {
         ? "Synkar..."
         : "Synkad online"
     : "Lokal lagring";
+  const pendingAccountCount = Number(accountAccess.pendingAccountCount || 0);
+  const renderSystemAdminLabel = () => (
+    <span className="inline-flex items-center justify-center gap-1.5">
+      <span>Systemadmin</span>
+      {pendingAccountCount > 0 && (
+        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-extrabold leading-none text-white">
+          {pendingAccountCount > 99 ? "99+" : pendingAccountCount}
+        </span>
+      )}
+    </span>
+  );
   const updatePrompt = (
     <AppUpdatePrompt
       visible={appUpdate.updateAvailable}
@@ -1337,11 +1493,51 @@ export default function App() {
     );
   }
 
-  if (isSupabaseConfigured && onlineTeams.loading) {
+  if (isSupabaseConfigured && (onlineTeams.loading || accountAccess.loading)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
-          Hämtar dina lag...
+          Hämtar din åtkomst...
+        </div>
+        <PrivacyNoticeModal
+          open={privacyNoticeOpen}
+          requireAcknowledge={privacyNoticeRequired}
+          onClose={closePrivacyNotice}
+        />
+        {updatePrompt}
+      </div>
+    );
+  }
+
+  if (isSupabaseConfigured && auth.user && accountAccess.accountStatus === "blocked") {
+    return (
+      <>
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-700">MatchApp</p>
+            <h1 className="mt-1 text-2xl font-extrabold text-slate-900">Kontot är blockerat</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Kontakta ansvarig om du tror att detta är fel.
+            </p>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="mt-4 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Logga ut
+            </button>
+          </div>
+        </div>
+        {updatePrompt}
+      </>
+    );
+  }
+
+  if ((!selectedTeamId || !selectedTeam) && availableTeams.length > 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-sm">
+          Väljer lag...
         </div>
         <PrivacyNoticeModal
           open={privacyNoticeOpen}
@@ -1359,9 +1555,20 @@ export default function App() {
         <TeamPicker
           teams={availableTeams}
           appVersion={APP_VERSION}
-          onSelectTeam={setSelectedTeamId}
+          onSelectTeam={handleSelectTeam}
           error={onlineTeams.error}
           onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
+          accountAccess={accountAccess}
+          pendingAccountCount={pendingAccountCount}
+          onOpenSystemAdmin={accountAccess.isSystemAdmin ? () => setSystemAdminOpen(true) : null}
+          onSignOut={isSupabaseConfigured && auth.user ? handleSignOut : null}
+        />
+        <SystemAdminPanel
+          open={systemAdminOpen}
+          currentUser={auth.user}
+          onClose={() => setSystemAdminOpen(false)}
+          onToast={showToast}
+          onChanged={accountAccess.refresh}
         />
         <PrivacyNoticeModal
           open={privacyNoticeOpen}
@@ -1403,22 +1610,24 @@ export default function App() {
               >
                 Säsong
               </button>
-              {selectedTeam?.onlineId && canManageSelectedTeam && (
+              {selectedTeam?.onlineId && (
                 <button
                   type="button"
                   onClick={() => setTeamAdminOpen(true)}
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  Lagadmin
+                  Lag
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleChangeTeam}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Byt lag
-              </button>
+              {accountAccess.isSystemAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setSystemAdminOpen(true)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {renderSystemAdminLabel()}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -1473,6 +1682,7 @@ export default function App() {
           stats={stats}
           increment={increment}
           playersForUI={playersForUI}
+          onToggleMatchPlayer={toggleMatchPlayer}
           onConfirm={requestConfirm}
         />
       )}
@@ -1480,6 +1690,9 @@ export default function App() {
       <SeasonCenter
         open={seasonOpen}
         selectedTeam={selectedTeam}
+        teams={availableTeams}
+        selectedTeamId={selectedTeamId}
+        onSelectTeam={handleSelectTeam}
         selectedSeason={selectedSeason}
         seasonOptions={seasonOptions}
         onSeasonChange={setSelectedSeason}
@@ -1499,6 +1712,11 @@ export default function App() {
       <TeamAdminPanel
         open={teamAdminOpen}
         team={selectedTeam}
+        teams={availableTeams}
+        selectedTeamId={selectedTeamId}
+        onSelectTeam={handleSelectTeam}
+        accountAccess={accountAccess}
+        onTeamCreated={isSupabaseConfigured && auth.user ? handleTeamCreated : null}
         currentUser={auth.user}
         onClose={() => setTeamAdminOpen(false)}
         onToast={showToast}
@@ -1510,6 +1728,14 @@ export default function App() {
           setPrivacyNoticeRequired(false);
           setPrivacyNoticeOpen(true);
         }}
+      />
+
+      <SystemAdminPanel
+        open={systemAdminOpen}
+        currentUser={auth.user}
+        onClose={() => setSystemAdminOpen(false)}
+        onToast={showToast}
+        onChanged={accountAccess.refresh}
       />
 
       <ConfirmDialog

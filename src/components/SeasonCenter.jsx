@@ -86,6 +86,9 @@ function SeasonDropdown({ label, value, options, onChange }) {
 export default function SeasonCenter({
   open,
   selectedTeam,
+  teams = [],
+  selectedTeamId,
+  onSelectTeam,
   selectedSeason,
   seasonOptions = [],
   onSeasonChange,
@@ -138,6 +141,15 @@ export default function SeasonCenter({
       setMatchToolsOpen(false);
     }
   }, [open]);
+
+  const handleTeamChange = (teamId) => {
+    setSeasonMatchDetail(null);
+    setSeasonPlayerDetail(null);
+    setSeasonMatchPlayerFocus(null);
+    setMatchDeleteMode(false);
+    setSelectedMatchIdsForDelete([]);
+    onSelectTeam?.(teamId);
+  };
 
   useEffect(() => {
     if (!seasonToolsOpen) return undefined;
@@ -535,6 +547,14 @@ export default function SeasonCenter({
                   value={selectedSeason || ""}
                   options={seasonOptions.map((season) => ({ value: season, label: season }))}
                   onChange={onSeasonChange}
+                />
+              )}
+              {teams.length > 1 && onSelectTeam && (
+                <SeasonDropdown
+                  label="Välj lag"
+                  value={selectedTeamId || selectedTeam?.id || ""}
+                  options={teams.map((team) => ({ value: team.id, label: team.name }))}
+                  onChange={handleTeamChange}
                 />
               )}
               <SeasonDropdown

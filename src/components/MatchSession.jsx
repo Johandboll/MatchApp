@@ -23,11 +23,14 @@ export default function MatchSession({
   stats,
   increment,
   playersForUI,
+  onToggleMatchPlayer,
   onConfirm
 }) {
   const [logOpen, setLogOpen] = useState(false);
+  const [rosterOpen, setRosterOpen] = useState(false);
 
   const getPlayerId = useCallback((player) => player?.id ?? player?.nr, []);
+  const getPlayerShirtNumber = useCallback((player) => player?.shirtNumber ?? player?.nr, []);
 
   const playersByRef = useMemo(() => {
     const map = new Map();
@@ -37,6 +40,41 @@ export default function MatchSession({
     });
     return map;
   }, [allPlayers, getPlayerId]);
+
+  const playerMatchesRef = useCallback(
+    (player, ref) => String(getPlayerId(player)) === String(ref) || String(player?.nr) === String(ref),
+    [getPlayerId]
+  );
+
+  const playerHasActivity = useCallback(
+    (player) => {
+      const hasHistory = (history || []).some(
+        (item) => playerMatchesRef(player, item?.playerId) || playerMatchesRef(player, item?.nr)
+      );
+      if (hasHistory) return true;
+
+      const refs = [
+        getPlayerId(player),
+        player?.nr,
+        player?.shirtNumber
+      ]
+        .filter((value) => value !== undefined && value !== null && value !== "")
+        .map((value) => String(value));
+      const playerStats = refs.map((ref) => stats?.[ref]).find(Boolean);
+      if (!playerStats) return false;
+
+      return Object.entries(playerStats).some(([key, value]) => {
+        if (key === "byHalf") {
+          return Object.values(value || {}).some((halfStats) =>
+            Object.values(halfStats || {}).some((count) => Number(count) > 0)
+          );
+        }
+
+        return Number(value) > 0;
+      });
+    },
+    [getPlayerId, history, playerMatchesRef, stats]
+  );
 
   return (
     <div>
@@ -53,14 +91,18 @@ export default function MatchSession({
         liveAway={liveAway}
         cupLabel={cupLabel}
         onOpenLog={() => setLogOpen(true)}
+        onOpenRoster={() => setRosterOpen(true)}
       />
 
-      {logOpen && (
+      {(logOpen || rosterOpen) && (
         <button
           type="button"
-          onClick={() => setLogOpen(false)}
+          onClick={() => {
+            setLogOpen(false);
+            setRosterOpen(false);
+          }}
           className="fixed inset-0 z-40 bg-black/20"
-          aria-label="Stäng händelselogg"
+          aria-label="Stäng panel"
         />
       )}
 
@@ -136,13 +178,83 @@ export default function MatchSession({
         </div>
       </div>
 
+      <div
+        className={`fixed top-0 right-0 h-full w-[380px] max-w-[92vw] z-50 bg-white shadow-2xl border-l border-black/10 transform transition-transform duration-200 ${
+          rosterOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+        role="dialog"
+        aria-label="Matchtrupp"
+      >
+        <div className="p-3 border-b flex items-center justify-between">
+          <div>
+            <div className="font-semibold">Matchtrupp</div>
+            <div className="text-xs text-gray-500">{selectedPlayers.length} valda</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRosterOpen(false)}
+            className="px-2 py-1 rounded-lg bg-gray-100"
+            aria-label="Stäng"
+          >
+            Stäng
+          </button>
+        </div>
+
+        <div className="h-[calc(100%-65px)] overflow-auto p-3">
+          <div className="space-y-2">
+            {(playersForUI || []).map((player) => {
+              const playerId = getPlayerId(player);
+              const shirtNumber = getPlayerShirtNumber(player);
+              const selected = (selectedPlayers || []).some((ref) => playerMatchesRef(player, ref));
+              const locked = selected && playerHasActivity(player);
+              const isGoalkeeper = player.role === "goalkeeper";
+
+              return (
+                <button
+                  key={playerId}
+                  type="button"
+                  onClick={() => onToggleMatchPlayer?.(playerId)}
+                  className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                    selected
+                      ? locked
+                        ? "border-slate-300 bg-slate-100 text-slate-700"
+                        : isGoalkeeper
+                          ? "border-amber-600 bg-amber-200 text-slate-950"
+                          : "border-sky-700 bg-sky-600 text-white"
+                      : isGoalkeeper
+                        ? "border-amber-300 bg-amber-50 text-slate-900 hover:bg-amber-100"
+                        : "border-sky-200 bg-sky-50 text-slate-900 hover:bg-sky-100"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">
+                        #{shirtNumber} {player.name}
+                      </div>
+                      {isGoalkeeper && <div className="text-xs font-bold opacity-70">Målvakt</div>}
+                    </div>
+                    <div className="shrink-0 text-xs font-bold">
+                      {selected ? (locked ? "Låst" : "Vald") : "Lägg till"}
+                    </div>
+                  </div>
+                  {locked && (
+                    <div className="mt-1 text-xs opacity-80">
+                      Har händelser i matchen
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {viewMode === "match" ? (
         <MatchView
           allPlayers={allPlayers}
           selectedPlayers={selectedPlayers}
           stats={stats}
           increment={increment}
-          onReset={onReset}
         />
       ) : (
         <StatsView allPlayers={playersForUI} selectedPlayers={selectedPlayers} stats={stats} />

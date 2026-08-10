@@ -20,9 +20,22 @@ declare
   clean_name text;
   base_slug text;
   new_team_id uuid;
+  user_access record;
 begin
   if auth.uid() is null then
     raise exception 'Du måste vara inloggad för att skapa lag.';
+  end if;
+
+  select *
+  into user_access
+  from public.get_my_account_access();
+
+  if coalesce(user_access.account_status, 'pending') <> 'approved' then
+    raise exception 'Kontot måste vara godkänt innan du kan skapa lag.';
+  end if;
+
+  if coalesce(user_access.created_team_count, 0) >= coalesce(user_access.team_create_limit, 0) then
+    raise exception 'Du har nått din gräns för att skapa lag.';
   end if;
 
   clean_name := trim(team_name);

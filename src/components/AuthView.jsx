@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabaseClient";
 export default function AuthView({ appVersion }) {
   const [mode, setMode] = useState("signIn");
   const [displayName, setDisplayName] = useState("");
+  const [clubName, setClubName] = useState("");
+  const [organizationRole, setOrganizationRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -29,6 +31,8 @@ export default function AuthView({ appVersion }) {
 
     const cleanEmail = email.trim();
     const cleanDisplayName = displayName.trim();
+    const cleanClubName = clubName.trim();
+    const cleanOrganizationRole = organizationRole.trim();
 
     const { error } =
       mode === "signUp"
@@ -37,7 +41,9 @@ export default function AuthView({ appVersion }) {
             password,
             options: {
               data: {
-                display_name: cleanDisplayName
+                display_name: cleanDisplayName,
+                club_name: cleanClubName,
+                organization_role: cleanOrganizationRole
               }
             }
           })
@@ -173,17 +179,45 @@ export default function AuthView({ appVersion }) {
         ) : (
           <form onSubmit={submit} className="space-y-3">
           {mode === "signUp" && (
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Namn</span>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                autoComplete="name"
-                required
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-              />
-            </label>
+            <>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Namn</span>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  autoComplete="name"
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Klubb/förening</span>
+                <input
+                  type="text"
+                  value={clubName}
+                  onChange={(event) => setClubName(event.target.value)}
+                  autoComplete="organization"
+                  required
+                  placeholder="Ex. BK Heid"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Roll/funktion</span>
+                <input
+                  type="text"
+                  value={organizationRole}
+                  onChange={(event) => setOrganizationRole(event.target.value)}
+                  autoComplete="organization-title"
+                  required
+                  placeholder="Ex. huvudtränare P18/P16/P14"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+            </>
           )}
 
           <label className="block">

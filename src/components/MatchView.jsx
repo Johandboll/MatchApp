@@ -21,7 +21,7 @@ function PopButton({ className = "", onClick, children, ...rest }) {
   );
 }
 
-export default function MatchView({ allPlayers, selectedPlayers, stats, increment, onReset }) {
+export default function MatchView({ allPlayers, selectedPlayers, stats, increment }) {
   const [menuFor, setMenuFor] = useState(null);
   const [mobilePlayerRef, setMobilePlayerRef] = useState(null);
 
@@ -121,16 +121,6 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
               );
             })}
           </div>
-
-          {onReset && (
-            <button
-              type="button"
-              onClick={onReset}
-              className="mb-3 min-h-[46px] w-full rounded-2xl bg-yellow-500 px-3 text-sm font-semibold text-white shadow-sm"
-            >
-              Avsluta match
-            </button>
-          )}
         </div>
 
         {mobilePlayer && (

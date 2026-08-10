@@ -10,7 +10,17 @@ const normalizeTeamName = (value) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onTeamCreated }) {
+export default function TeamPicker({
+  teams,
+  appVersion,
+  onSelectTeam,
+  error,
+  onTeamCreated,
+  accountAccess,
+  pendingAccountCount = 0,
+  onOpenSystemAdmin,
+  onSignOut
+}) {
   const [teamName, setTeamName] = useState("");
   const [busy, setBusy] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -49,6 +59,27 @@ export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onT
     onTeamCreated?.(createdTeam);
   };
 
+  const hasCreateAccess = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
+  const isPending = accountAccess?.accountStatus === "pending";
+  const isBlocked = accountAccess?.accountStatus === "blocked";
+  const createdTeamCount = Number(accountAccess?.createdTeamCount || 0);
+  const teamCreateLimit = Number(accountAccess?.teamCreateLimit || 0);
+  const hasTeams = teams.length > 0;
+  const title = hasTeams
+    ? "Välj lag"
+    : isPending
+      ? "Kontot väntar på godkännande"
+      : hasCreateAccess
+        ? "Skapa ditt första lag"
+        : "Inget lag kopplat";
+  const subtitle = hasTeams
+    ? "Fortsätt till matchläge genom att välja ett lag."
+    : isPending
+      ? "När kontot är godkänt kan du skapa lag eller bli tillagd i ett lag."
+      : hasCreateAccess
+        ? "Du kan skapa ett lag här och börja lägga in spelare."
+        : "Be en ägare eller admin lägga till dig i rätt lag.";
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4 bg-gradient-to-b from-sky-50 via-white to-emerald-50">
       <div className="w-full max-w-2xl">
@@ -56,10 +87,39 @@ export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onT
           <p className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide bg-sky-100 text-sky-800 border border-sky-200">
             MatchApp
           </p>
-          <h2 className="mt-3 text-3xl font-extrabold text-slate-900">Välj lag</h2>
+          <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{title}</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Fortsätt till matchläge genom att välja ett lag.
+            {subtitle}
           </p>
+          {(onOpenSystemAdmin || onSignOut) && (
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {onOpenSystemAdmin && (
+                <button
+                  type="button"
+                  onClick={onOpenSystemAdmin}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <span>Systemadmin</span>
+                    {pendingAccountCount > 0 && (
+                      <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-extrabold leading-none text-white">
+                        {pendingAccountCount > 99 ? "99+" : pendingAccountCount}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              )}
+              {onSignOut && (
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                >
+                  Logga ut
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -70,7 +130,13 @@ export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onT
 
         {!error && teams.length === 0 && (
           <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Din inloggning är inte kopplad till något lag ännu.
+            {isBlocked
+              ? "Kontot är blockerat och kan inte använda MatchApp."
+              : isPending
+                ? "Kontot väntar på godkännande innan du kan skapa lag."
+                : hasCreateAccess
+                  ? "Du har inget lag ännu. Skapa ditt första testlag nedan."
+                  : "Din inloggning är inte kopplad till något lag ännu."}
           </div>
         )}
 
@@ -100,13 +166,27 @@ export default function TeamPicker({ teams, appVersion, onSelectTeam, error, onT
           })}
         </div>
 
-        {onTeamCreated && (
+        {onTeamCreated && !hasCreateAccess && !isBlocked && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-600 shadow-sm">
+            <div className="font-bold text-slate-900">Skapa nytt lag</div>
+            <div className="mt-1">
+              {isPending
+                ? "När kontot är godkänt kan du skapa lag."
+                : `Du har skapat ${createdTeamCount} av ${teamCreateLimit} tillåtna lag.`}
+            </div>
+          </div>
+        )}
+
+        {hasCreateAccess && (
           <form
             onSubmit={createTeam}
             className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm"
           >
             <div className="mb-3">
               <div className="text-base font-bold text-slate-900">Skapa nytt lag</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Du har skapat {createdTeamCount} av {teamCreateLimit} tillåtna lag.
+              </div>
             </div>
             {createError && (
               <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

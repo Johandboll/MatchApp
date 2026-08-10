@@ -1,6 +1,6 @@
 {
   "name": "matchapp",
-  "version": "2.0.3",
+  "version": "2.0.4-test",
   "private": true,
   "homepage": "https://handbollsportalen.se/matchapp",
   "dependencies": {
@@ -19,7 +19,8 @@
     "start": "REACT_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) react-scripts start",
     "build": "node scripts/write-version.js && REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
     "build:local": "node scripts/write-version.js && PUBLIC_URL=. REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
-    "build:test": "node scripts/write-version.js && PUBLIC_URL=/test REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
+    "build:test": "bash scripts/build-test.sh",
+    "start:test": "bash scripts/start-test.sh",
     "build:prod": "node scripts/write-version.js && PUBLIC_URL=/matchapp REACT_APP_BUILD_TIME=$(node -p \"require('./public/version.json').buildTime\") react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

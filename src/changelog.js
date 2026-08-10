@@ -2,6 +2,16 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4": [
+    "**Åtkomst:** Nya konton kan vänta på godkännande innan de får skapa lag.",
+    "**Laggräns:** Godkända användare kan få en personlig gräns för hur många lag de får skapa.",
+    "**Systemadmin:** En ny systemadminvy gör det möjligt att godkänna, blockera och justera laggränser. Väntande användare markeras med en röd räknare.",
+    "**Registrering:** Nya användare anger klubb och roll/funktion så godkännandet blir tydligare.",
+    "**Lag:** Lagval och skapa lag finns nu samlat i Lag, och Säsong kan växla mellan dina lag.",
+    "**Match:** Matchtruppen kan justeras under pågående match. Spelare med registrerade händelser låses för borttagning.",
+    "**Säkerhet:** Appen varnar om lagbyte skulle radera påbörjad matchsetup eller en pågående match.",
+    "**Säkerhet:** Skapa lag kontrolleras även i Supabase, inte bara i appens knappar."
+  ],
   "2.0.3": [
     "**Telefonvy:** Matchvyn har fått ett särskilt telefonläge med tydligare spelarval och stora händelseknappar.",
     "**Snabb registrering:** Spelarens händelsepanel öppnas när du väljer spelaren och stängs automatiskt efter registreringen.",
@@ -65,7 +75,7 @@ const WHATS_NEW_BY_VERSION = {
 
 // ✅ Tooltip-texten (oförändrat beteende)
 export function getChangelogTooltip(version) {
-  const items = WHATS_NEW_BY_VERSION[version] || [];
+  const items = WHATS_NEW_BY_VERSION[version] || WHATS_NEW_BY_VERSION[String(version || "").split("-")[0]] || [];
   const header = `${version} – Nytt:`;
   const lines = [header, ...items.map((t) => `• ${t}`)];
   return lines.join("\n");
@@ -73,5 +83,5 @@ export function getChangelogTooltip(version) {
 
 // ✅ NY: används av “Vad är nytt?”-rutan (modalen)
 export function getWhatsNewItems(version) {
-  return WHATS_NEW_BY_VERSION[version] || [];
+  return WHATS_NEW_BY_VERSION[version] || WHATS_NEW_BY_VERSION[String(version || "").split("-")[0]] || [];
 }

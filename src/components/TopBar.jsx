@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function TopBar({
   currentHalf, setCurrentHalf,
@@ -6,8 +6,10 @@ export default function TopBar({
   undoLast, onReset,
   matchInfo, selectedTeam, liveHome, liveAway,
   cupLabel,
-  onOpenLog
+  onOpenLog,
+  onOpenRoster
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const ourTeamName = selectedTeam?.name || "Vi";
   const opponentName = matchInfo?.opponent || "Mot";
   const isAway = (matchInfo?.location || "") === "Borta";
@@ -16,7 +18,12 @@ export default function TopBar({
 
   return (
     <>
-      <div className="match-phone-only match-phone-topbar sticky top-0 z-20 -mx-4 mb-3 border-b border-slate-200 bg-slate-50/95 px-4 pb-3 pt-2 backdrop-blur">
+      <div
+        className={`match-phone-only match-phone-topbar sticky top-0 -mx-4 mb-3 border-b border-slate-200 bg-slate-50/95 px-4 pb-3 pt-2 backdrop-blur ${moreOpen ? "z-[60]" : "z-20"}`}
+        onClick={() => {
+          if (moreOpen) setMoreOpen(false);
+        }}
+      >
         <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-600">
           <div className="min-w-0 truncate font-semibold">
             {matchInfo?.date || "-"} · {matchInfo?.location || "-"}{cupLabel ? ` · ${cupLabel}` : ""}
@@ -49,29 +56,82 @@ export default function TopBar({
           <div className="truncate text-left text-sm font-bold text-slate-700">{awayLabel}</div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={onOpenLog} className="min-h-[42px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white">
-            Händelser
-          </button>
+        <div className="relative grid grid-cols-2 gap-2">
           <button type="button" onClick={undoLast} className="min-h-[42px] rounded-xl bg-red-500 px-2 text-sm font-semibold text-white">
             Ångra
           </button>
           <button
             type="button"
-            className={`min-h-[42px] rounded-xl px-2 text-sm font-semibold ${viewMode === "match" ? "bg-blue-600 text-white" : "border border-slate-300 bg-white text-slate-700"}`}
-            onClick={() => setViewMode("match")}
+            onClick={(event) => {
+              event.stopPropagation();
+              setMoreOpen((open) => !open);
+            }}
+            className="min-h-[42px] rounded-xl bg-slate-700 px-2 text-sm font-semibold text-white"
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
           >
-            Match
+            Mer
           </button>
           <button
             type="button"
-            className={`min-h-[42px] rounded-xl px-2 text-sm font-semibold ${viewMode === "stats" ? "bg-blue-600 text-white" : "border border-slate-300 bg-white text-slate-700"}`}
-            onClick={() => setViewMode("stats")}
+            onClick={onOpenLog}
+            className="min-h-[42px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white"
           >
-            Statistik
+            Händelser
           </button>
+          <button
+            type="button"
+            className="min-h-[42px] rounded-xl bg-blue-600 px-2 text-sm font-semibold text-white"
+            onClick={() => setViewMode(viewMode === "match" ? "stats" : "match")}
+          >
+            {viewMode === "match" ? "Statistik" : "Match"}
+          </button>
+
         </div>
       </div>
+
+      {moreOpen && (
+        <>
+          <button
+            type="button"
+            className="match-phone-only fixed inset-0 z-[80] cursor-default bg-transparent"
+            onClick={() => setMoreOpen(false)}
+            aria-label="Stäng Mer"
+          />
+          <div
+            role="menu"
+            className="match-phone-only fixed right-4 top-[8.75rem] z-[90] w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                onOpenRoster?.();
+              }}
+              className="w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-800 hover:bg-slate-100"
+            >
+              Trupp
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                onReset?.();
+              }}
+              className="mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-amber-800 hover:bg-amber-50"
+            >
+              Avsluta match
+            </button>
+            <button
+              type="button"
+              onClick={() => setMoreOpen(false)}
+              className="mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            >
+              Stäng
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="match-tablet-only">
       {/* Toppresultat */}
@@ -136,6 +196,7 @@ export default function TopBar({
 
         <div className="flex gap-2 flex-wrap ml-auto">
           <button onClick={onOpenLog} className="bg-slate-800 text-white px-4 py-2 rounded-xl">Händelser</button>
+          <button onClick={onOpenRoster} className="bg-slate-700 text-white px-4 py-2 rounded-xl">Trupp</button>
           <button onClick={undoLast} className="bg-red-500 text-white px-4 py-2 rounded-xl">Ångra senaste</button>
           <button onClick={onReset} className="bg-yellow-500 text-white px-4 py-2 rounded-xl">Avsluta match</button>
         </div>
