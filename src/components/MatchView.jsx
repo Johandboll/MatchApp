@@ -103,7 +103,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                       ? "border-slate-900 bg-slate-900 text-white shadow-md ring-2 ring-slate-200"
                     : isGk
                         ? "border-amber-200 bg-amber-50 text-slate-900 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-900 shadow-sm"
+                        : "border-sky-200 bg-sky-50 text-slate-900 shadow-sm"
                   }`}
                   aria-pressed={isSelected}
                 >
@@ -307,7 +307,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
           return (
             <div
               key={playerRef}
-              className={`relative rounded-2xl border bg-white p-3 shadow-sm ${isGk ? "border-amber-200" : "border-slate-200"}`}
+              className={`relative rounded-2xl border p-3 shadow-sm ${isGk ? "border-amber-200 bg-amber-50/70" : "border-sky-200 bg-sky-50/80"}`}
             >
               <div className="font-semibold mb-2 text-center">#{shirtNumber} {p.name}</div>
 
