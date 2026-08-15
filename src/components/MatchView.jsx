@@ -100,10 +100,10 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                   onClick={() => setMobilePlayerRef(playerRef)}
                   className={`min-h-[58px] rounded-2xl border px-3 py-2 text-left transition ${
                     isSelected
-                      ? "border-blue-700 bg-blue-700 text-white ring-2 ring-blue-200"
+                      ? "border-slate-900 bg-slate-900 text-white shadow-md ring-2 ring-slate-200"
                     : isGk
-                        ? "bg-yellow-200 text-slate-900"
-                        : "bg-blue-100 text-slate-900"
+                        ? "border-amber-200 bg-amber-50 text-slate-900 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-900 shadow-sm"
                   }`}
                   aria-pressed={isSelected}
                 >
@@ -136,7 +136,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                  mobileIsGk ? "bg-yellow-200 text-yellow-900" : "bg-blue-100 text-blue-800"
+                  mobileIsGk ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200" : "bg-sky-50 text-sky-800 ring-1 ring-sky-200"
                 }`}>
                   {mobileIsGk ? "Målvakt" : "Utespelare"}
                 </span>
@@ -159,35 +159,35 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className={`min-h-[50px] rounded-xl px-3 text-sm font-bold text-white shadow-sm ${mobileIsGk ? "bg-rose-600" : "bg-emerald-600"}`}
+                  className={`min-h-[50px] rounded-xl border px-3 text-sm font-bold shadow-sm ${mobileIsGk ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}
                   onClick={() => mobileIncrement("sevenGoal")}
                 >
                   {mobileIsGk ? "7m insläppt" : "7m mål"}
                 </button>
                 <button
                   type="button"
-                  className={`min-h-[50px] rounded-xl px-3 text-sm font-bold text-white shadow-sm ${mobileIsGk ? "bg-emerald-600" : "bg-rose-600"}`}
+                  className={`min-h-[50px] rounded-xl border px-3 text-sm font-bold shadow-sm ${mobileIsGk ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}
                   onClick={() => mobileIncrement("sevenMiss")}
                 >
                   {mobileIsGk ? "7m räddning" : "7m miss"}
                 </button>
                 <button
                   type="button"
-                  className="min-h-[50px] rounded-xl bg-amber-100 px-3 text-sm font-bold text-amber-900 shadow-sm"
+                  className="min-h-[50px] rounded-xl border border-orange-200 bg-orange-50 px-3 text-sm font-bold text-orange-800 shadow-sm"
                   onClick={() => mobileIncrement("twoMin")}
                 >
                   2 min
                 </button>
                 <button
                   type="button"
-                  className="min-h-[50px] rounded-xl bg-yellow-100 px-3 text-sm font-bold text-yellow-900 shadow-sm"
+                  className="min-h-[50px] rounded-xl border border-yellow-200 bg-yellow-50 px-3 text-sm font-bold text-yellow-800 shadow-sm"
                   onClick={() => mobileIncrement("yellowCard")}
                 >
                   Gult kort
                 </button>
                 <button
                   type="button"
-                  className="min-h-[50px] rounded-xl bg-red-100 px-3 text-sm font-bold text-red-800 shadow-sm"
+                  className="min-h-[50px] rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-800 shadow-sm"
                   onClick={() => mobileIncrement("redCard")}
                 >
                   Rött kort
@@ -195,7 +195,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 {mobileIsGk && (
                   <button
                     type="button"
-                    className="min-h-[50px] rounded-xl bg-slate-800 px-3 text-sm font-bold text-white shadow-sm"
+                    className="min-h-[50px] rounded-xl border border-sky-200 bg-sky-50 px-3 text-sm font-bold text-sky-800 shadow-sm"
                     onClick={() => mobileIncrement("gkScored")}
                   >
                     Målvaktsmål
@@ -204,7 +204,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 {!mobileIsGk && (
                   <button
                     type="button"
-                    className="min-h-[50px] rounded-xl bg-slate-800 px-3 text-sm font-bold text-white shadow-sm"
+                    className="min-h-[50px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 shadow-sm"
                     onClick={() => mobileIncrement("turnover")}
                   >
                     Tekn. fel
@@ -212,7 +212,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 )}
                 <button
                   type="button"
-                  className="col-start-2 min-h-[50px] rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 shadow-sm"
+                  className="col-start-2 min-h-[50px] rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm"
                   onClick={() => setMenuFor(null)}
                 >
                   Tillbaka
@@ -221,32 +221,32 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 <PopButton
-                  className={`min-h-[52px] rounded-xl px-2 text-sm font-semibold text-white shadow-sm ${mobileIsGk ? "bg-rose-600" : "bg-emerald-600"}`}
+                  className={`min-h-[52px] rounded-xl border px-2 text-sm font-semibold shadow-sm ${mobileIsGk ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}
                   onClick={() => mobileIncrement("goal")}
                 >
                   {mobileIsGk ? `Insläppt (${mobileConceded})` : `Mål (${(mobileStats.goal ?? 0) + (mobileStats.sevenGoal ?? 0)})`}
                 </PopButton>
                 <PopButton
-                  className={`min-h-[52px] rounded-xl px-2 text-sm font-semibold text-white shadow-sm ${mobileIsGk ? "bg-emerald-600" : "bg-sky-600"}`}
+                  className={`min-h-[52px] rounded-xl border px-2 text-sm font-semibold shadow-sm ${mobileIsGk ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}
                   onClick={() => mobileIncrement("save")}
                 >
                   {mobileIsGk ? `Räddn. (${mobileSaves})` : `Räddning (${mobileStats.save ?? 0})`}
                 </PopButton>
                 <PopButton
-                  className="min-h-[52px] rounded-xl bg-amber-500 px-2 text-sm font-semibold text-slate-950 shadow-sm"
+                  className="min-h-[52px] rounded-xl border border-amber-200 bg-amber-50 px-2 text-sm font-semibold text-amber-800 shadow-sm"
                   onClick={() => mobileIncrement("post")}
                 >
                   Ribba ({mobileStats.post ?? 0})
                 </PopButton>
                 <PopButton
-                  className="min-h-[48px] rounded-xl bg-slate-500 px-2 text-sm font-semibold text-white shadow-sm"
+                  className="min-h-[48px] rounded-xl border border-slate-200 bg-slate-50 px-2 text-sm font-semibold text-slate-700 shadow-sm"
                   onClick={() => mobileIncrement("miss")}
                 >
                   Utanför ({mobileStats.miss ?? 0})
                 </PopButton>
                 {!mobileIsGk && (
                   <PopButton
-                    className="min-h-[48px] rounded-xl bg-indigo-600 px-2 text-sm font-semibold text-white shadow-sm"
+                    className="min-h-[48px] rounded-xl border border-sky-200 bg-sky-50 px-2 text-sm font-semibold text-sky-800 shadow-sm"
                     onClick={() => mobileIncrement("assist")}
                   >
                     Assist ({mobileStats.assist ?? 0})
@@ -254,7 +254,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 )}
                 {mobileIsGk && (
                   <PopButton
-                    className="min-h-[48px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white shadow-sm"
+                    className="min-h-[48px] rounded-xl border border-slate-200 bg-slate-50 px-2 text-sm font-semibold text-slate-700 shadow-sm"
                     onClick={() => mobileIncrement("turnover")}
                   >
                     Tekn. fel
@@ -262,7 +262,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 )}
                 <button
                   type="button"
-                  className="min-h-[48px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white shadow-sm"
+                  className="min-h-[48px] rounded-xl border border-slate-300 bg-white px-2 text-sm font-semibold text-slate-800 shadow-sm"
                   onClick={() => setMenuFor(getPlayerRef(mobilePlayer))}
                 >
                   Mer
@@ -284,7 +284,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
           const sevenGoalLabel = isGk ? "7m insl" : "7m mål";
           const sevenMissLabel = isGk ? "7m rädd" : "7m miss";
 
-          const btnBase = "w-full rounded-xl px-2 py-2 text-xs font-semibold leading-tight shadow-sm lg:text-sm";
+          const btnBase = "w-full rounded-xl border px-2 py-2 text-xs font-semibold leading-tight shadow-sm transition hover:-translate-y-px hover:shadow lg:text-sm";
           const btnStyle = {
             alignItems: "center",
             display: "flex",
@@ -292,12 +292,12 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
             minHeight: "36px",
             whiteSpace: "nowrap"
           };
-          const goalBtnClass = isGk ? "bg-rose-600 text-white" : "bg-emerald-600 text-white";
-          const saveBtnClass = isGk ? "bg-emerald-600 text-white" : "bg-rose-600 text-white";
-          const missBtnClass = "bg-sky-600 text-white";
-          const postBtnClass = "bg-amber-500 text-slate-950";
-          const assistBtnClass = "bg-indigo-600 text-white";
-          const moreBtnClass = "bg-slate-800 text-white";
+          const goalBtnClass = isGk ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800";
+          const saveBtnClass = isGk ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800";
+          const missBtnClass = "border-slate-200 bg-slate-50 text-slate-700";
+          const postBtnClass = "border-amber-200 bg-amber-50 text-amber-800";
+          const assistBtnClass = "border-sky-200 bg-sky-50 text-sky-800";
+          const moreBtnClass = "border-slate-300 bg-white text-slate-800";
           const menuPositionClass = [
             index % 2 === 1 ? "right-0" : "left-0",
             index % 3 === 2 ? "md:right-0 md:left-auto" : "md:left-0 md:right-auto",
@@ -307,7 +307,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
           return (
             <div
               key={playerRef}
-              className={`border p-3 rounded-2xl relative ${isGk ? "bg-yellow-200" : "bg-blue-100"}`}
+              className={`relative rounded-2xl border bg-white p-3 shadow-sm ${isGk ? "border-amber-200" : "border-slate-200"}`}
             >
               <div className="font-semibold mb-2 text-center">#{shirtNumber} {p.name}</div>
 
@@ -370,8 +370,8 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
 
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      className={`rounded-xl px-3 py-3 text-sm font-bold shadow-sm ${
-                        isGk ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
+                      className={`rounded-xl border px-3 py-3 text-sm font-bold shadow-sm ${
+                        isGk ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"
                       }`}
                       onClick={() => {
                         increment(playerRef, "sevenGoal");
@@ -381,8 +381,8 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                       {sevenGoalLabel}
                     </button>
                     <button
-                      className={`rounded-xl px-3 py-3 text-sm font-bold shadow-sm ${
-                        isGk ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
+                      className={`rounded-xl border px-3 py-3 text-sm font-bold shadow-sm ${
+                        isGk ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"
                       }`}
                       onClick={() => {
                         increment(playerRef, "sevenMiss");
@@ -395,32 +395,32 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
 
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <button
-                      className="rounded-xl bg-amber-100 px-3 py-3 text-sm font-bold text-amber-900 hover:bg-amber-200"
+                      className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-3 text-sm font-bold text-orange-800 hover:bg-orange-100"
                       onClick={() => { increment(playerRef, "twoMin"); setMenuFor(null); }}
                     >
                       2 min
                     </button>
                     <button
-                      className="rounded-xl bg-yellow-100 px-3 py-3 text-sm font-bold text-yellow-900 hover:bg-yellow-200"
+                      className="rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-3 text-sm font-bold text-yellow-800 hover:bg-yellow-100"
                       onClick={() => { increment(playerRef, "yellowCard"); setMenuFor(null); }}
                     >
                       Gult
                     </button>
                     <button
-                      className="rounded-xl bg-red-100 px-3 py-3 text-sm font-bold text-red-800 hover:bg-red-200"
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm font-bold text-red-800 hover:bg-red-100"
                       onClick={() => { increment(playerRef, "redCard"); setMenuFor(null); }}
                     >
                       Rött
                     </button>
                     <button
-                      className="rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-800 hover:bg-slate-200"
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
                       onClick={() => { increment(playerRef, "turnover"); setMenuFor(null); }}
                     >
                       Tekn. fel
                     </button>
                     {isGk && (
                       <button
-                        className="col-span-2 rounded-xl bg-slate-800 px-3 py-3 text-sm font-bold text-white hover:bg-slate-900"
+                        className="col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm font-bold text-sky-800 hover:bg-sky-100"
                         onClick={() => { increment(playerRef, "gkScored"); setMenuFor(null); }}
                       >
                         MV mål
