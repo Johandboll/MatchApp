@@ -221,32 +221,32 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 <PopButton
-                  className={`min-h-[52px] rounded-xl border px-2 text-sm font-semibold shadow-sm ${mobileIsGk ? "border-rose-300 bg-rose-100 text-rose-900" : "border-emerald-300 bg-emerald-100 text-emerald-900"}`}
+                  className={`min-h-[52px] rounded-xl border px-2 text-sm font-semibold shadow-md ring-2 ring-white ${mobileIsGk ? "border-rose-400 bg-rose-200 text-rose-950" : "border-emerald-400 bg-emerald-200 text-emerald-950"}`}
                   onClick={() => mobileIncrement("goal")}
                 >
                   {mobileIsGk ? `Insläppt (${mobileConceded})` : `Mål (${(mobileStats.goal ?? 0) + (mobileStats.sevenGoal ?? 0)})`}
                 </PopButton>
                 <PopButton
-                  className={`min-h-[52px] rounded-xl border px-2 text-sm font-semibold shadow-sm ${mobileIsGk ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-rose-300 bg-rose-100 text-rose-900"}`}
+                  className={`min-h-[52px] rounded-xl border px-2 text-sm font-semibold shadow-md ring-2 ring-white ${mobileIsGk ? "border-emerald-400 bg-emerald-200 text-emerald-950" : "border-rose-400 bg-rose-200 text-rose-950"}`}
                   onClick={() => mobileIncrement("save")}
                 >
                   {mobileIsGk ? `Räddn. (${mobileSaves})` : `Räddning (${mobileStats.save ?? 0})`}
                 </PopButton>
                 <PopButton
-                  className="min-h-[52px] rounded-xl border border-amber-300 bg-amber-100 px-2 text-sm font-semibold text-amber-900 shadow-sm"
+                  className="min-h-[52px] rounded-xl border border-amber-400 bg-amber-200 px-2 text-sm font-semibold text-amber-950 shadow-md ring-2 ring-white"
                   onClick={() => mobileIncrement("post")}
                 >
                   Ribba ({mobileStats.post ?? 0})
                 </PopButton>
                 <PopButton
-                  className="min-h-[48px] rounded-xl border border-slate-300 bg-slate-100 px-2 text-sm font-semibold text-slate-800 shadow-sm"
+                  className="min-h-[48px] rounded-xl border border-slate-400 bg-slate-200 px-2 text-sm font-semibold text-slate-900 shadow-md ring-2 ring-white"
                   onClick={() => mobileIncrement("miss")}
                 >
                   Utanför ({mobileStats.miss ?? 0})
                 </PopButton>
                 {!mobileIsGk && (
                   <PopButton
-                    className="min-h-[48px] rounded-xl border border-sky-300 bg-sky-100 px-2 text-sm font-semibold text-sky-900 shadow-sm"
+                    className="min-h-[48px] rounded-xl border border-sky-400 bg-sky-200 px-2 text-sm font-semibold text-sky-950 shadow-md ring-2 ring-white"
                     onClick={() => mobileIncrement("assist")}
                   >
                     Assist ({mobileStats.assist ?? 0})
@@ -254,7 +254,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 )}
                 {mobileIsGk && (
                   <PopButton
-                    className="min-h-[48px] rounded-xl border border-slate-200 bg-slate-50 px-2 text-sm font-semibold text-slate-700 shadow-sm"
+                    className="min-h-[48px] rounded-xl border border-slate-400 bg-slate-200 px-2 text-sm font-semibold text-slate-900 shadow-md ring-2 ring-white"
                     onClick={() => mobileIncrement("turnover")}
                   >
                     Tekn. fel
@@ -262,7 +262,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 )}
                 <button
                   type="button"
-                  className="min-h-[48px] rounded-xl border border-slate-300 bg-white px-2 text-sm font-semibold text-slate-800 shadow-sm"
+                  className="min-h-[48px] rounded-xl border border-slate-400 bg-white px-2 text-sm font-semibold text-slate-900 shadow-md ring-2 ring-white"
                   onClick={() => setMenuFor(getPlayerRef(mobilePlayer))}
                 >
                   Mer
@@ -284,7 +284,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
           const sevenGoalLabel = isGk ? "7m insl" : "7m mål";
           const sevenMissLabel = isGk ? "7m rädd" : "7m miss";
 
-          const btnBase = "w-full rounded-xl border px-2 py-2 text-xs font-semibold leading-tight shadow-sm transition hover:-translate-y-px hover:shadow lg:text-sm";
+          const btnBase = "w-full rounded-xl border px-2 py-2 text-xs font-semibold leading-tight shadow-md ring-2 ring-white transition hover:-translate-y-px hover:shadow-lg lg:text-sm";
           const btnStyle = {
             alignItems: "center",
             display: "flex",
@@ -292,11 +292,11 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
             minHeight: "36px",
             whiteSpace: "nowrap"
           };
-          const goalBtnClass = isGk ? "border-rose-300 bg-rose-100 text-rose-900" : "border-emerald-300 bg-emerald-100 text-emerald-900";
-          const saveBtnClass = isGk ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-rose-300 bg-rose-100 text-rose-900";
-          const missBtnClass = "border-slate-300 bg-slate-100 text-slate-800";
-          const postBtnClass = "border-amber-300 bg-amber-100 text-amber-900";
-          const assistBtnClass = "border-sky-300 bg-sky-100 text-sky-900";
+          const goalBtnClass = isGk ? "border-rose-400 bg-rose-200 text-rose-950" : "border-emerald-400 bg-emerald-200 text-emerald-950";
+          const saveBtnClass = isGk ? "border-emerald-400 bg-emerald-200 text-emerald-950" : "border-rose-400 bg-rose-200 text-rose-950";
+          const missBtnClass = "border-slate-400 bg-slate-200 text-slate-900";
+          const postBtnClass = "border-amber-400 bg-amber-200 text-amber-950";
+          const assistBtnClass = "border-sky-400 bg-sky-200 text-sky-950";
           const moreBtnClass = "border-slate-300 bg-white text-slate-800";
           const menuPositionClass = [
             index % 2 === 1 ? "right-0" : "left-0",
