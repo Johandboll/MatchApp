@@ -20,12 +20,13 @@ const mapAccess = (data) => ({
 });
 
 export function useAccountAccess(user) {
+  const userId = user?.id || null;
   const [access, setAccess] = useState(DEFAULT_ACCESS);
   const [loading, setLoading] = useState(Boolean(supabase && user));
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    if (!supabase || !user) {
+    if (!supabase || !userId) {
       setAccess(DEFAULT_ACCESS);
       setLoading(false);
       setError("");
@@ -47,7 +48,7 @@ export function useAccountAccess(user) {
     const row = Array.isArray(data) ? data[0] : data;
     setAccess(mapAccess(row));
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     refresh();

@@ -48,3 +48,23 @@ test("fails closed as pending when the access query fails", async () => {
   expect(result.current.canCreateTeam).toBe(false);
   expect(result.current.error).toBe("network error");
 });
+
+test("does not reload access when Supabase refreshes the same user session", async () => {
+  supabase.rpc.mockResolvedValue({
+    data: [{ account_status: "approved", can_create_team: true }],
+    error: null
+  });
+
+  const { result, rerender } = renderHook(
+    ({ currentUser }) => useAccountAccess(currentUser),
+    { initialProps: { currentUser: { id: "user-1", tokenMarker: "old" } } }
+  );
+
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(supabase.rpc).toHaveBeenCalledTimes(1);
+
+  rerender({ currentUser: { id: "user-1", tokenMarker: "new" } });
+
+  expect(result.current.loading).toBe(false);
+  expect(supabase.rpc).toHaveBeenCalledTimes(1);
+});

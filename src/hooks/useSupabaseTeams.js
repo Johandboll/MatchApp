@@ -47,13 +47,14 @@ const mergeWithLocalRoster = (team, membershipRole) => {
 };
 
 export function useSupabaseTeams(user) {
+  const userId = user?.id || null;
   const [teams, setTeams] = useState(() => (user?.id ? readTeamsCache(user.id) : []));
   const [loading, setLoading] = useState(Boolean(supabase && user));
   const [error, setError] = useState("");
   const [usingCache, setUsingCache] = useState(false);
 
   useEffect(() => {
-    if (!supabase || !user) {
+    if (!supabase || !userId) {
       setTeams([]);
       setLoading(false);
       setError("");
@@ -64,7 +65,7 @@ export function useSupabaseTeams(user) {
     let active = true;
 
     const loadTeams = async () => {
-      const cachedTeams = readTeamsCache(user.id);
+      const cachedTeams = readTeamsCache(userId);
       if (cachedTeams.length > 0) {
         setTeams(cachedTeams);
         setUsingCache(true);
@@ -82,7 +83,7 @@ export function useSupabaseTeams(user) {
       const { data, error: queryError } = await supabase
         .from("team_members")
         .select("role, teams(id, name, slug, deletion_scheduled_at, players(id, shirt_number, name, role, active))")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
       if (!active) return;
@@ -106,7 +107,7 @@ export function useSupabaseTeams(user) {
         .map((row) => mergeWithLocalRoster(row.teams, row.role));
 
       setTeams(nextTeams);
-      writeTeamsCache(user.id, nextTeams);
+      writeTeamsCache(userId, nextTeams);
       setUsingCache(false);
       setLoading(false);
     };
@@ -116,12 +117,12 @@ export function useSupabaseTeams(user) {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [userId]);
 
   const setTeamsAndCache = (next) => {
     setTeams((prev) => {
       const value = typeof next === "function" ? next(prev) : next;
-      if (user?.id) writeTeamsCache(user.id, value);
+      if (userId) writeTeamsCache(userId, value);
       return value;
     });
   };
