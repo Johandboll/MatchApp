@@ -178,7 +178,7 @@ export default function App() {
     const fromQuery = getTeamFromQuery();
     if (fromQuery) return fromQuery;
     try {
-      return localStorage.getItem(SELECTED_TEAM_KEY) || null;
+      return (saved?.step === 2 && saved?.activeMatchTeamId) || localStorage.getItem(SELECTED_TEAM_KEY) || null;
     } catch {
       return null;
     }
@@ -191,6 +191,16 @@ export default function App() {
     () => saved?.cupPanelOpen ?? (saved?.cupEnabled ?? false)
   );
   const [selectedPlayers, setSelectedPlayers] = useState(() => saved?.selectedPlayers || []);
+  const [activeMatchTeamId, setActiveMatchTeamId] = useState(() => {
+    if (saved?.activeMatchTeamId) return saved.activeMatchTeamId;
+    if (saved?.step !== 2) return null;
+    try {
+      return localStorage.getItem(SELECTED_TEAM_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
+  const [matchRoster, setMatchRoster] = useState(() => saved?.matchRoster || []);
   const [step, setStep] = useState(() => saved?.step || 1);
   const [stats, setStats] = useState(() => saved?.stats || {});
   const [history, setHistory] = useState(() => {
@@ -232,6 +242,12 @@ export default function App() {
     if (selectedTeamId === EXTERNAL_TEAM_ID || teamFileFromQuery) return;
     if (selectedTeamId && selectedTeam) return;
 
+    // Never move an ongoing match to another team while memberships are loading.
+    if (step === 2 && activeMatchTeamId) {
+      if (selectedTeamId !== activeMatchTeamId) setSelectedTeamId(activeMatchTeamId);
+      return;
+    }
+
     if (availableTeams.length > 0) {
       setSelectedTeamId(availableTeams[0].id);
       return;
@@ -240,7 +256,7 @@ export default function App() {
     if (isSupabaseConfigured && auth.user && !onlineTeams.loading && selectedTeamId) {
       setSelectedTeamId(null);
     }
-  }, [auth.user, availableTeams, onlineTeams.loading, selectedTeam, selectedTeamId, teamFileFromQuery]);
+  }, [activeMatchTeamId, auth.user, availableTeams, onlineTeams.loading, selectedTeam, selectedTeamId, step, teamFileFromQuery]);
 
   const canDeleteFromSelectedTeam =
     !selectedTeam?.onlineId || selectedTeam?.membershipRole === "owner";
@@ -281,11 +297,14 @@ export default function App() {
   }, [auth.user]);
 
   const basePlayers = useMemo(() => {
+    if (step === 2 && activeMatchTeamId === selectedTeamId && matchRoster.length > 0) {
+      return matchRoster;
+    }
     if (selectedTeam && Array.isArray(selectedTeam.players) && selectedTeam.players.length > 0) {
       return selectedTeam.players;
     }
     return [];
-  }, [selectedTeam]);
+  }, [activeMatchTeamId, matchRoster, selectedTeam, selectedTeamId, step]);
 
   const allPlayers = useMemo(() => {
     const normalize = (player, index = 0) => {
@@ -319,6 +338,13 @@ export default function App() {
   );
 
   const playersForUI = useMemo(() => sortPlayersForUI(allPlayers), [allPlayers]);
+
+  // Upgrade an already ongoing match saved by an older build with its current roster.
+  useEffect(() => {
+    if (step !== 2 || !selectedTeamId || allPlayers.length === 0) return;
+    if (!activeMatchTeamId) setActiveMatchTeamId(selectedTeamId);
+    if (matchRoster.length === 0) setMatchRoster(allPlayers);
+  }, [activeMatchTeamId, allPlayers, matchRoster.length, selectedTeamId, step]);
   const pendingMatchesForSelectedTeam = useMemo(
     () =>
       pendingOnlineMatches.filter(
@@ -539,7 +565,9 @@ export default function App() {
         cupEnabled,
         cupName,
         cupPhase,
-        cupPanelOpen
+        cupPanelOpen,
+        activeMatchTeamId,
+        matchRoster
       })
     );
   }, [
@@ -553,11 +581,25 @@ export default function App() {
     cupEnabled,
     cupName,
     cupPhase,
-    cupPanelOpen
+    cupPanelOpen,
+    activeMatchTeamId,
+    matchRoster
   ]);
 
   useEffect(() => {
     persist();
+  }, [persist]);
+
+  useEffect(() => {
+    const persistWhenHidden = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+    window.addEventListener("pagehide", persist);
+    document.addEventListener("visibilitychange", persistWhenHidden);
+    return () => {
+      window.removeEventListener("pagehide", persist);
+      document.removeEventListener("visibilitychange", persistWhenHidden);
+    };
   }, [persist]);
 
   useEffect(() => {
@@ -717,9 +759,11 @@ export default function App() {
     });
     setStats(initialStats);
     setCurrentHalf(1);
+    setActiveMatchTeamId(selectedTeamId);
+    setMatchRoster(allPlayers);
     setStep(2);
     setViewMode("match");
-  }, [matchInfo, selectedPlayers]);
+  }, [allPlayers, matchInfo, selectedPlayers, selectedTeamId]);
 
   const increment = useCallback(
     (nr, type) => {
@@ -753,6 +797,8 @@ export default function App() {
           time: Date.now(),
           playerId: getPlayerId(player),
           nr: getPlayerShirtNumber(player),
+          playerName: player?.name || "",
+          playerRole: player?.role || "field",
           type,
           half: currentHalf
         }
@@ -985,6 +1031,8 @@ export default function App() {
     setStats({});
     setHistory([]);
     setSelectedPlayers([]);
+    setActiveMatchTeamId(null);
+    setMatchRoster([]);
     setMatchInfo({ date: "", opponent: "", location: "" });
     setCurrentHalf(1);
     setViewMode("match");
@@ -1003,7 +1051,9 @@ export default function App() {
         cupEnabled,
         cupName,
         cupPhase,
-        cupPanelOpen
+        cupPanelOpen,
+        activeMatchTeamId: null,
+        matchRoster: []
       })
     );
 
@@ -1316,6 +1366,8 @@ export default function App() {
     setSelectedPlayers([]);
     setStats({});
     setHistory([]);
+    setActiveMatchTeamId(null);
+    setMatchRoster([]);
     setMatchInfo({ date: "", opponent: "", location: "" });
     setCurrentHalf(1);
     setViewMode("match");

@@ -48,22 +48,14 @@ export function useAppUpdate() {
       setRegistration(event.detail?.registration || null);
       setUpdateAvailable(true);
     };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") checkVersion();
-    };
-
     window.addEventListener("matchapp:update-available", handleUpdateAvailable);
     checkVersion();
 
     const interval = window.setInterval(checkVersion, 5 * 60 * 1000);
-    window.addEventListener("focus", checkVersion);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("matchapp:update-available", handleUpdateAvailable);
       window.clearInterval(interval);
-      window.removeEventListener("focus", checkVersion);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [checkVersion]);
 

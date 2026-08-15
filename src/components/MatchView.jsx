@@ -219,15 +219,21 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 </PopButton>
                 <PopButton
                   className={`min-h-[52px] rounded-xl px-2 text-sm font-semibold text-white shadow-sm ${mobileIsGk ? "bg-emerald-600" : "bg-sky-600"}`}
-                  onClick={() => mobileIncrement(mobileIsGk ? "save" : "miss")}
+                  onClick={() => mobileIncrement("save")}
                 >
-                  {mobileIsGk ? `Räddn. (${mobileSaves})` : `Utanför (${(mobileStats.miss ?? 0) + (mobileStats.sevenMiss ?? 0)})`}
+                  {mobileIsGk ? `Räddn. (${mobileSaves})` : `Räddning (${mobileStats.save ?? 0})`}
                 </PopButton>
                 <PopButton
                   className="min-h-[52px] rounded-xl bg-amber-500 px-2 text-sm font-semibold text-slate-950 shadow-sm"
                   onClick={() => mobileIncrement("post")}
                 >
                   Ribba ({mobileStats.post ?? 0})
+                </PopButton>
+                <PopButton
+                  className="min-h-[48px] rounded-xl bg-slate-500 px-2 text-sm font-semibold text-white shadow-sm"
+                  onClick={() => mobileIncrement("miss")}
+                >
+                  Utanför ({mobileStats.miss ?? 0})
                 </PopButton>
                 {!mobileIsGk && (
                   <PopButton

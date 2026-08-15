@@ -48,7 +48,6 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
           });
         });
 
-        window.addEventListener("focus", () => registration.update());
         window.setInterval(() => registration.update(), 5 * 60 * 1000);
       })
       .catch(() => {});

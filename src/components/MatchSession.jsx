@@ -134,7 +134,10 @@ export default function MatchSession({
                 .slice()
                 .reverse()
                 .map((item) => {
-                  const player = playersByRef.get(String(item.playerId ?? item.nr));
+                  const player = playersByRef.get(String(item.playerId ?? item.nr)) || {
+                    name: item.playerName || "",
+                    role: item.playerRole === "goalkeeper" ? "goalkeeper" : undefined
+                  };
                   const label = eventLabel(item.type, player);
 
                   return (
