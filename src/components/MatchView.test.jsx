@@ -28,3 +28,18 @@ test("mobile field player has both saved and wide shot outcomes", () => {
 
   expect(increment).toHaveBeenCalledWith("field-1", "save");
 });
+
+test("mobile field player keeps technical error inside More", () => {
+  const increment = jest.fn();
+  render(<MatchView allPlayers={players} selectedPlayers={["field-1"]} stats={{}} increment={increment} />);
+
+  openPlayer("Utespelaren");
+  expect(screen.queryByRole("button", { name: "Tekn. fel" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getAllByRole("button", { name: /Mer/ })[0]);
+  const technicalErrorButtons = screen.getAllByRole("button", { name: "Tekn. fel" });
+  expect(technicalErrorButtons).toHaveLength(2);
+  fireEvent.click(technicalErrorButtons[0]);
+
+  expect(increment).toHaveBeenCalledWith("field-1", "turnover");
+});

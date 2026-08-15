@@ -201,6 +201,15 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                     Målvaktsmål
                   </button>
                 )}
+                {!mobileIsGk && (
+                  <button
+                    type="button"
+                    className="min-h-[50px] rounded-xl bg-slate-800 px-3 text-sm font-bold text-white shadow-sm"
+                    onClick={() => mobileIncrement("turnover")}
+                  >
+                    Tekn. fel
+                  </button>
+                )}
                 <button
                   type="button"
                   className="col-start-2 min-h-[50px] rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 shadow-sm"
@@ -243,12 +252,14 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                     Assist ({mobileStats.assist ?? 0})
                   </PopButton>
                 )}
-                <PopButton
-                  className="min-h-[48px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white shadow-sm"
-                  onClick={() => mobileIncrement("turnover")}
-                >
-                  Tekn. fel
-                </PopButton>
+                {mobileIsGk && (
+                  <PopButton
+                    className="min-h-[48px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white shadow-sm"
+                    onClick={() => mobileIncrement("turnover")}
+                  >
+                    Tekn. fel
+                  </PopButton>
+                )}
                 <button
                   type="button"
                   className="min-h-[48px] rounded-xl bg-slate-800 px-2 text-sm font-semibold text-white shadow-sm"
