@@ -57,7 +57,7 @@ export default function TopBar({
         </div>
 
         <div className="relative grid grid-cols-2 gap-2">
-          <button type="button" onClick={undoLast} className="min-h-[42px] rounded-xl border border-rose-200 bg-rose-50 px-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100">
+          <button type="button" onClick={undoLast} className="min-h-[42px] rounded-xl border border-rose-300 bg-rose-100 px-2 text-sm font-semibold text-rose-900 shadow-sm transition hover:bg-rose-200">
             Ångra
           </button>
           <button
@@ -81,7 +81,7 @@ export default function TopBar({
           </button>
           <button
             type="button"
-            className="min-h-[42px] rounded-xl border border-sky-200 bg-sky-50 px-2 text-sm font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100"
+            className="min-h-[42px] rounded-xl border border-sky-300 bg-sky-100 px-2 text-sm font-semibold text-sky-900 shadow-sm transition hover:bg-sky-200"
             onClick={() => setViewMode(viewMode === "match" ? "stats" : "match")}
           >
             {viewMode === "match" ? "Statistik" : "Match"}
@@ -197,8 +197,8 @@ export default function TopBar({
         <div className="flex gap-2 flex-wrap ml-auto">
           <button onClick={onOpenLog} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-slate-700 shadow-sm hover:bg-slate-50">Händelser</button>
           <button onClick={onOpenRoster} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-slate-700 shadow-sm hover:bg-slate-50">Trupp</button>
-          <button onClick={undoLast} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-800 shadow-sm hover:bg-rose-100">Ångra senaste</button>
-          <button onClick={onReset} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-amber-800 shadow-sm hover:bg-amber-100">Avsluta match</button>
+          <button onClick={undoLast} className="rounded-xl border border-rose-300 bg-rose-100 px-4 py-2 text-rose-900 shadow-sm hover:bg-rose-200">Ångra senaste</button>
+          <button onClick={onReset} className="rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-amber-900 shadow-sm hover:bg-amber-200">Avsluta match</button>
         </div>
       </div>
 

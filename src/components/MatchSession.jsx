@@ -77,7 +77,7 @@ export default function MatchSession({
   );
 
   return (
-    <div className="-mx-4 min-h-screen bg-gradient-to-b from-sky-50/70 via-slate-50/30 to-transparent px-4 pb-6">
+    <div className="-mx-4 min-h-screen bg-gradient-to-b from-sky-100/70 via-slate-50/40 to-transparent px-4 pb-6">
       <TopBar
         currentHalf={currentHalf}
         setCurrentHalf={setCurrentHalf}
