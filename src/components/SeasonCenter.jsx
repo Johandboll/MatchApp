@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
 import {
   buildMatchStatRow,
   buildSeasonKpis as makeSeasonKpis,
@@ -104,6 +105,7 @@ export default function SeasonCenter({
   onConfirm,
   canManageSeason = true
 }) {
+  useDocumentScrollLock(open);
   const [seasonTab, setSeasonTab] = useState("overview");
   const [seasonSearchPlayers, setSeasonSearchPlayers] = useState("");
   const [seasonSearchMatches, setSeasonSearchMatches] = useState("");

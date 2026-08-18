@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
 
 const roleLabel = {
   owner: "Lagägare",
@@ -48,6 +49,7 @@ export default function TeamAdminPanel({
   currentUserRole,
   onOpenPrivacyNotice
 }) {
+  useDocumentScrollLock(open);
   const [tab, setTab] = useState("players");
   const [members, setMembers] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -556,7 +558,7 @@ export default function TeamAdminPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/40 p-3 sm:p-6">
+    <div className="fixed inset-0 z-50 overscroll-contain bg-slate-950/40 p-3 sm:p-6">
       <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
@@ -697,7 +699,7 @@ export default function TeamAdminPanel({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overscroll-contain overflow-y-auto p-4">
           {!canManageCurrentTeam && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
               <p>Du är användare i det aktiva laget. Spelare och medlemmar hanteras av lagägaren eller en lagadmin.</p>
