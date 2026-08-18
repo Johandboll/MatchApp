@@ -43,3 +43,17 @@ test("mobile field player keeps technical error inside More", () => {
 
   expect(increment).toHaveBeenCalledWith("field-1", "turnover");
 });
+
+test("goalkeeper has assist in the main actions and goalkeeper goal inside More", () => {
+  const increment = jest.fn();
+  render(<MatchView allPlayers={players} selectedPlayers={["gk-1"]} stats={{}} increment={increment} />);
+
+  openPlayer("Målvakten");
+  expect(screen.getAllByRole("button", { name: /Assist/ })[0]).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Tekn. fel" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getAllByRole("button", { name: /Mer/ })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "Målvaktsmål" })[0]);
+
+  expect(increment).toHaveBeenCalledWith("gk-1", "gkScored");
+});

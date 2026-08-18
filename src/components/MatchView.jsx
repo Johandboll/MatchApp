@@ -254,10 +254,10 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 )}
                 {mobileIsGk && (
                   <PopButton
-                    className="min-h-[48px] rounded-xl border border-slate-400 bg-slate-200 px-2 text-sm font-semibold text-slate-900 shadow-md ring-2 ring-white"
-                    onClick={() => mobileIncrement("turnover")}
+                    className="min-h-[48px] rounded-xl border border-sky-400 bg-sky-200 px-2 text-sm font-semibold text-sky-950 shadow-md ring-2 ring-white"
+                    onClick={() => mobileIncrement("assist")}
                   >
-                    Tekn. fel
+                    Assist ({mobileStats.assist ?? 0})
                   </PopButton>
                 )}
                 <button
@@ -413,19 +413,18 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                       Rött
                     </button>
                     <button
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
-                      onClick={() => { increment(playerRef, "turnover"); setMenuFor(null); }}
+                      className={`rounded-xl border px-3 py-3 text-sm font-bold ${
+                        isGk
+                          ? "border-sky-300 bg-sky-100 text-sky-900 hover:bg-sky-200"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      }`}
+                      onClick={() => {
+                        increment(playerRef, isGk ? "gkScored" : "turnover");
+                        setMenuFor(null);
+                      }}
                     >
-                      Tekn. fel
+                      {isGk ? "MV mål" : "Tekn. fel"}
                     </button>
-                    {isGk && (
-                      <button
-                        className="col-span-2 rounded-xl border border-sky-300 bg-sky-100 px-3 py-3 text-sm font-bold text-sky-900 hover:bg-sky-200"
-                        onClick={() => { increment(playerRef, "gkScored"); setMenuFor(null); }}
-                      >
-                        MV mål
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
