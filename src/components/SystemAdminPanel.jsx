@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
 
 const STATUS_LABELS = {
   pending: "Väntar",
@@ -8,6 +9,7 @@ const STATUS_LABELS = {
 };
 
 export default function SystemAdminPanel({ open, currentUser, onClose, onToast, onChanged }) {
+  useDocumentScrollLock(open);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +66,7 @@ export default function SystemAdminPanel({ open, currentUser, onClose, onToast, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-3 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overscroll-contain overflow-y-auto bg-slate-900/50 p-3 sm:p-6">
       <div className="w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
