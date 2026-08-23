@@ -3,14 +3,13 @@
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
   "2.0.4": [
-    "**Åtkomst:** Nya konton kan vänta på godkännande innan de får skapa lag.",
-    "**Laggräns:** Godkända användare kan få en personlig gräns för hur många lag de får skapa.",
-    "**Systemadmin:** En ny systemadminvy gör det möjligt att godkänna, blockera och justera laggränser. Väntande användare markeras med en röd räknare.",
-    "**Registrering:** Nya användare anger klubb och roll/funktion så godkännandet blir tydligare.",
-    "**Lag:** Lagval och skapa lag finns nu samlat i Lag, och Säsong kan växla mellan dina lag.",
-    "**Match:** Matchtruppen kan justeras under pågående match. Spelare med registrerade händelser låses för borttagning.",
-    "**Säkerhet:** Appen varnar om lagbyte skulle radera påbörjad matchsetup eller en pågående match.",
-    "**Säkerhet:** Skapa lag kontrolleras även i Supabase, inte bara i appens knappar."
+    "**Skapa lag:** Skapa ditt eget lag och lägg enkelt till spelare och målvakter.",
+    "**Hantera laget:** Lagägaren kan lägga till medlemmar och utse lagadministratörer.",
+    "**Byta lagägare:** Ägarskapet kan överlåtas om någon annan ska ta över laget.",
+    "**Trygg radering:** Ett lag raderas först efter 24 timmar och raderingen kan ångras.",
+    "**Smidigare spelarhantering:** Spelare kan ändras direkt på sin rad i spelarlistan.",
+    "**Förbättrat matchläge:** Tydligare och modernare händelseknappar för utespelare och målvakter.",
+    "**Säkrare matcher:** Pågående matcher bevaras bättre när du byter app eller telefonen låses."
   ],
   "2.0.3": [
     "**Telefonvy:** Matchvyn har fått ett särskilt telefonläge med tydligare spelarval och stora händelseknappar.",
