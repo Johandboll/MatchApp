@@ -1,4 +1,9 @@
-import { buildSeasonOptions, buildSeasonSummary, getDefaultSeason } from "./appHelpers";
+import {
+  buildSeasonOptions,
+  buildSeasonSummary,
+  getDefaultSeason,
+  isActiveMatchTeamUnavailable
+} from "./appHelpers";
 
 const makeMatch = (player, teamId = "team-old") => ({
   teamId,
@@ -55,5 +60,37 @@ describe("season options", () => {
 
     expect(getDefaultSeason(date)).toBe("2026/2027");
     expect(buildSeasonOptions(date)).toEqual(["2025/2026", "2026/2027"]);
+  });
+});
+
+describe("ongoing match recovery", () => {
+  test("detects a saved match whose team is no longer available", () => {
+    expect(
+      isActiveMatchTeamUnavailable({
+        step: 2,
+        activeMatchTeamId: "old-team",
+        availableTeams: [{ id: "current-team" }],
+        teamsLoading: false
+      })
+    ).toBe(true);
+  });
+
+  test("waits for memberships and keeps a match for an available team", () => {
+    expect(
+      isActiveMatchTeamUnavailable({
+        step: 2,
+        activeMatchTeamId: "old-team",
+        availableTeams: [],
+        teamsLoading: true
+      })
+    ).toBe(false);
+    expect(
+      isActiveMatchTeamUnavailable({
+        step: 2,
+        activeMatchTeamId: "current-team",
+        availableTeams: [{ id: "current-team" }],
+        teamsLoading: false
+      })
+    ).toBe(false);
   });
 });

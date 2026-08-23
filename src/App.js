@@ -33,6 +33,7 @@ import {
   eventLabel,
   filterSeasonMatchesByTeam,
   getDefaultSeason,
+  isActiveMatchTeamUnavailable,
   getMatchSeason,
   getSeasonStartYear,
   loadSaved,
@@ -238,12 +239,20 @@ export default function App() {
     return availableTeams.find((team) => team.id === selectedTeamId) || null;
   }, [availableTeams, selectedTeamId, externalTeamData]);
 
+  const activeMatchTeamUnavailable = isActiveMatchTeamUnavailable({
+    step,
+    activeMatchTeamId,
+    availableTeams,
+    teamsLoading: onlineTeams.loading
+  });
+
   useEffect(() => {
     if (selectedTeamId === EXTERNAL_TEAM_ID || teamFileFromQuery) return;
     if (selectedTeamId && selectedTeam) return;
 
     // Never move an ongoing match to another team while memberships are loading.
     if (step === 2 && activeMatchTeamId) {
+      if (activeMatchTeamUnavailable) return;
       if (selectedTeamId !== activeMatchTeamId) setSelectedTeamId(activeMatchTeamId);
       return;
     }
@@ -256,7 +265,7 @@ export default function App() {
     if (isSupabaseConfigured && auth.user && !onlineTeams.loading && selectedTeamId) {
       setSelectedTeamId(null);
     }
-  }, [activeMatchTeamId, auth.user, availableTeams, onlineTeams.loading, selectedTeam, selectedTeamId, step, teamFileFromQuery]);
+  }, [activeMatchTeamId, activeMatchTeamUnavailable, auth.user, availableTeams, onlineTeams.loading, selectedTeam, selectedTeamId, step, teamFileFromQuery]);
 
   const canDeleteFromSelectedTeam =
     !selectedTeam?.onlineId || selectedTeam?.membershipRole === "owner";
@@ -1648,6 +1657,42 @@ export default function App() {
                 className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
               >
                 Kontrollera igen
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Logga ut
+              </button>
+            </div>
+          </div>
+        </div>
+        {updatePrompt}
+      </>
+    );
+  }
+
+  if (activeMatchTeamUnavailable) {
+    return (
+      <>
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+          <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 text-center shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">MatchApp</p>
+            <h1 className="mt-1 text-2xl font-extrabold text-slate-900">Den sparade matchens lag saknas</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Chrome har en lokalt sparad pågående match för ett lag som ditt konto inte längre har åtkomst till.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              Inget tas bort automatiskt. Om du fortsätter rensas bara den lokalt sparade pågående matchen.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => performTeamSelection(availableTeams[0]?.id || null)}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Rensa matchen och fortsätt
               </button>
               <button
                 type="button"

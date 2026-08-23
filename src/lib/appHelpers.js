@@ -21,6 +21,19 @@ export const loadSeasonMatches = () => {
   }
 };
 
+export const isActiveMatchTeamUnavailable = ({
+  step,
+  activeMatchTeamId,
+  availableTeams,
+  teamsLoading
+}) =>
+  step === 2 &&
+  Boolean(activeMatchTeamId) &&
+  !teamsLoading &&
+  !(Array.isArray(availableTeams) ? availableTeams : []).some(
+    (team) => team?.id === activeMatchTeamId
+  );
+
 export const n = (value) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
