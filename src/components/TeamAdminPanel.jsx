@@ -600,12 +600,12 @@ export default function TeamAdminPanel({
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lag</div>
             <h2 className="break-words text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
-          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:items-center">
+          <div className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:items-center">
             {canManageCurrentTeam && team?.onlineId && (
               <button
                 type="button"
                 onClick={() => setSeasonPanelOpen(true)}
-                className="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:px-3"
+                className="min-w-0 flex-[1.35] whitespace-nowrap rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
               >
                 Hantera säsong
               </button>
@@ -613,14 +613,14 @@ export default function TeamAdminPanel({
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
-              className="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:px-3"
+              className="min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
             >
               Integritet
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:px-3"
+              className="min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
             >
               Stäng
             </button>
