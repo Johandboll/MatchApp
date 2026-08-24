@@ -595,17 +595,17 @@ export default function TeamAdminPanel({
   return (
     <div className="fixed inset-0 z-50 overscroll-contain bg-slate-950/40 p-3 sm:p-6">
       <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <div>
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lag</div>
-            <h2 className="text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
+            <h2 className="break-words text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:items-center">
             {canManageCurrentTeam && team?.onlineId && (
               <button
                 type="button"
                 onClick={() => setSeasonPanelOpen(true)}
-                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700"
+                className="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:px-3"
               >
                 Hantera säsong
               </button>
@@ -613,14 +613,14 @@ export default function TeamAdminPanel({
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:px-3"
             >
               Integritet
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:px-3"
             >
               Stäng
             </button>
