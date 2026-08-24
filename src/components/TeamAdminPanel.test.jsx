@@ -118,18 +118,18 @@ test("opens season management in its own dialog", async () => {
     selectedSeason: "2026/2027",
     teamSeasons: [{
       team_season_id: "season-1",
-      season_name: "2026/2027",
+      season_name: "2025/2026",
       display_name: "P19",
-      starts_on: "2026-06-01",
-      ends_on: "2027-05-31",
+      starts_on: "2025-06-01",
+      ends_on: "2026-05-31",
       active_player_count: 2
     }],
     activeTeamSeason: {
       team_season_id: "season-1",
-      season_name: "2026/2027",
+      season_name: "2025/2026",
       display_name: "P19",
-      starts_on: "2026-06-01",
-      ends_on: "2027-05-31",
+      starts_on: "2025-06-01",
+      ends_on: "2026-05-31",
       active_player_count: 2
     }
   });
@@ -152,18 +152,18 @@ test("starts the new season flow one step at a time", async () => {
     selectedSeason: "2026/2027",
     teamSeasons: [{
       team_season_id: "season-1",
-      season_name: "2026/2027",
+      season_name: "2025/2026",
       display_name: "P19",
-      starts_on: "2026-06-01",
-      ends_on: "2027-05-31",
+      starts_on: "2025-06-01",
+      ends_on: "2026-05-31",
       active_player_count: 2
     }],
     activeTeamSeason: {
       team_season_id: "season-1",
-      season_name: "2026/2027",
+      season_name: "2025/2026",
       display_name: "P19",
-      starts_on: "2026-06-01",
-      ends_on: "2027-05-31",
+      starts_on: "2025-06-01",
+      ends_on: "2026-05-31",
       active_player_count: 2
     }
   });
@@ -173,7 +173,8 @@ test("starts the new season flow one step at a time", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Hantera säsong" }));
   fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
 
-  expect(screen.getByText("1. Den nya säsongen")).toBeVisible();
-  expect(screen.getByDisplayValue("2027/2028")).toBeVisible();
-  expect(screen.queryByText("2. Välj trupp att utgå från")).not.toBeInTheDocument();
+  expect(screen.getByText("1. Kontrollera säsongen")).toBeVisible();
+  expect(screen.getByText("2026/2027")).toBeVisible();
+  expect(screen.queryByText("2. Välj spelare som fortsätter")).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Fortsätt" })).toBeEnabled());
 });

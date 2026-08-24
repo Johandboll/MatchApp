@@ -9,10 +9,10 @@ jest.mock("../lib/supabaseClient", () => ({
 
 const season = {
   team_season_id: "season-1",
-  season_name: "2026/2027",
+  season_name: "2025/2026",
   display_name: "P19",
-  starts_on: "2026-06-01",
-  ends_on: "2027-05-31",
+  starts_on: "2025-06-01",
+  ends_on: "2026-05-31",
   active_player_count: 2
 };
 
@@ -20,7 +20,7 @@ const renderSeasonPanel = (overrides = {}) => render(
   <SeasonPanel
     open
     team={{ onlineId: "team-1", name: "Testlaget" }}
-    selectedSeason="2026/2027"
+    selectedSeason="2025/2026"
     seasons={[season]}
     activeTeamSeason={season}
     roster={[]}
@@ -28,12 +28,14 @@ const renderSeasonPanel = (overrides = {}) => render(
     onRefresh={jest.fn()}
     onToast={jest.fn()}
     onClose={jest.fn()}
+    today={new Date(2026, 7, 1)}
     {...overrides}
   />
 );
 
 beforeEach(() => {
   supabase.rpc.mockReset();
+  supabase.rpc.mockResolvedValue({ data: [], error: null });
 });
 
 test("keeps the overview compact until the user starts a new season", () => {
@@ -59,12 +61,9 @@ test("walks through details and roster source without creating early", async () 
   renderSeasonPanel();
 
   fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Fortsätt" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "Fortsätt" }));
-  expect(screen.getByText("2. Välj trupp att utgå från")).toBeVisible();
-  expect(supabase.rpc).not.toHaveBeenCalled();
-
-  fireEvent.click(screen.getByRole("button", { name: "Fortsätt" }));
-  expect(await screen.findByText("3. Välj spelare")).toBeVisible();
+  expect(await screen.findByText("2. Välj spelare som fortsätter")).toBeVisible();
   expect(screen.getByText("Anna")).toBeVisible();
   expect(supabase.rpc).toHaveBeenCalledWith("list_team_season_roster", {
     target_team_id: "team-1",
@@ -73,6 +72,6 @@ test("walks through details and roster source without creating early", async () 
   expect(supabase.rpc).not.toHaveBeenCalledWith("create_team_season", expect.anything());
 
   fireEvent.click(screen.getByRole("button", { name: "Fortsätt" }));
-  await waitFor(() => expect(screen.getByText("4. Bekräfta")).toBeVisible());
+  await waitFor(() => expect(screen.getByText("3. Bekräfta")).toBeVisible());
   expect(screen.getByText(/1 spelare följer med/)).toBeVisible();
 });

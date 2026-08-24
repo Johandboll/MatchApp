@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
+import { getCurrentSeasonDefinition } from "../lib/seasonHelpers";
 import SeasonPanel from "./SeasonPanel";
 
 const roleLabel = {
@@ -85,6 +86,8 @@ export default function TeamAdminPanel({
   const [transferTarget, setTransferTarget] = useState(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
   const [seasonPanelOpen, setSeasonPanelOpen] = useState(false);
+  const [teamSeasonStatuses, setTeamSeasonStatuses] = useState({});
+  const currentSeasonName = useMemo(() => getCurrentSeasonDefinition().name, []);
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
   const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
@@ -233,6 +236,28 @@ export default function TeamAdminPanel({
     loadMembers();
     loadPlayers();
   }, [loadMembers, loadPlayers, open]);
+
+  useEffect(() => {
+    if (!open || !supabase || teams.length === 0) return undefined;
+    let cancelled = false;
+
+    const loadSeasonStatuses = async () => {
+      const entries = await Promise.all(teams.map(async (item) => {
+        if (!item.onlineId) return [item.id, null];
+        const { data, error: seasonStatusError } = await supabase.rpc("list_team_seasons", {
+          target_team_id: item.onlineId
+        });
+        if (seasonStatusError) return [item.id, null];
+        return [item.id, (data || []).some((season) => season.season_name === currentSeasonName)];
+      }));
+      if (!cancelled) setTeamSeasonStatuses(Object.fromEntries(entries));
+    };
+
+    loadSeasonStatuses();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSeasonName, open, teams]);
 
   useEffect(() => {
     if (!canLoad || tab !== "members") return;
@@ -642,6 +667,16 @@ export default function TeamAdminPanel({
                         <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-slate-600 ring-1 ring-slate-200">
                           {roleLabel[item.membershipRole] || item.membershipRole || "Användare"}
                         </span>
+                        {teamSeasonStatuses[item.id] === true && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">
+                            Aktuell säsong klar
+                          </span>
+                        )}
+                        {teamSeasonStatuses[item.id] === false && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
+                            Ny säsong saknas
+                          </span>
+                        )}
                         {!canManage && (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500">
                             Läs/registrera
