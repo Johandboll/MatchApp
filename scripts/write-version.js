@@ -7,7 +7,7 @@ const versionFile = path.join(__dirname, "..", "public", "version.json");
 const buildTime = new Date().toISOString();
 
 const versionInfo = {
-  version: process.env.REACT_APP_APP_VERSION || packageJson.version,
+  version: packageJson.version,
   buildTime
 };
 

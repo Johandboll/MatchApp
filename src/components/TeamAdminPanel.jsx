@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
-import { getCurrentSeasonDefinition } from "../lib/seasonHelpers";
-import SeasonPanel from "./SeasonPanel";
 
 const roleLabel = {
   owner: "Lagägare",
@@ -49,15 +47,7 @@ export default function TeamAdminPanel({
   onConfirm,
   matches = [],
   currentUserRole,
-  onOpenPrivacyNotice,
-  selectedSeason,
-  onSeasonChange,
-  teamSeasons = [],
-  activeTeamSeason,
-  seasonRoster = [],
-  seasonLoading = false,
-  seasonError = "",
-  onSeasonRefresh
+  onOpenPrivacyNotice
 }) {
   useDocumentScrollLock(open);
   const [tab, setTab] = useState("players");
@@ -85,9 +75,6 @@ export default function TeamAdminPanel({
   const [deleteError, setDeleteError] = useState("");
   const [transferTarget, setTransferTarget] = useState(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
-  const [seasonPanelOpen, setSeasonPanelOpen] = useState(false);
-  const currentSeasonName = useMemo(() => getCurrentSeasonDefinition().name, []);
-  const hasCurrentSeason = teamSeasons.some((season) => season.season_name === currentSeasonName);
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
   const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
@@ -573,23 +560,23 @@ export default function TeamAdminPanel({
   return (
     <div className="fixed inset-0 z-50 overscroll-contain bg-slate-950/40 p-3 sm:p-6">
       <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lag</div>
-            <h2 className="break-words text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
+            <h2 className="text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
-          <div className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:items-center">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
-              className="min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               Integritet
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               Stäng
             </button>
@@ -689,22 +676,6 @@ export default function TeamAdminPanel({
                   )}
                 </div>
               )}
-            </section>
-          )}
-
-          {canManageCurrentTeam && team?.onlineId && !hasCurrentSeason && (
-            <section className="mb-3 flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-sm font-extrabold text-sky-950">Dags för ny säsong</h3>
-                <p className="mt-0.5 text-xs text-sky-800">Skapa {currentSeasonName} och välj vilka spelare som fortsätter.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSeasonPanelOpen(true)}
-                className="shrink-0 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700"
-              >
-                Starta ny säsong
-              </button>
             </section>
           )}
 
@@ -1201,21 +1172,6 @@ export default function TeamAdminPanel({
 
         </div>
       </div>
-      <SeasonPanel
-        open={seasonPanelOpen}
-        directStart
-        team={team}
-        selectedSeason={selectedSeason}
-        onSeasonChange={onSeasonChange}
-        seasons={teamSeasons}
-        activeTeamSeason={activeTeamSeason}
-        roster={seasonRoster}
-        loading={seasonLoading}
-        error={seasonError}
-        onRefresh={onSeasonRefresh}
-        onToast={onToast}
-        onClose={() => setSeasonPanelOpen(false)}
-      />
     </div>
   );
 }
