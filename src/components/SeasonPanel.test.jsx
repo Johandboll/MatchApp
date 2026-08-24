@@ -75,3 +75,34 @@ test("walks through details and roster source without creating early", async () 
   await waitFor(() => expect(screen.getByText("3. Bekräfta")).toBeVisible());
   expect(screen.getByText(/1 spelare följer med/)).toBeVisible();
 });
+
+test("selects and refreshes the newly created season", async () => {
+  const onSeasonChange = jest.fn();
+  const onRefresh = jest.fn().mockResolvedValue();
+  supabase.rpc
+    .mockResolvedValueOnce({
+      data: [{
+        player_identity_id: "identity-1",
+        display_name: "Anna",
+        shirt_number: 9,
+        player_role: "field",
+        active: true,
+        included: true
+      }],
+      error: null
+    })
+    .mockResolvedValueOnce({
+      data: [{ team_season_id: "season-2", season_name: "2026/2027" }],
+      error: null
+    });
+
+  renderSeasonPanel({ onSeasonChange, onRefresh });
+  fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Fortsätt" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Fortsätt" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Fortsätt" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Starta säsongen" }));
+
+  await waitFor(() => expect(onSeasonChange).toHaveBeenCalledWith("2026/2027"));
+  expect(onRefresh).toHaveBeenCalledWith("2026/2027");
+});

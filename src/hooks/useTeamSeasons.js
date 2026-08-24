@@ -8,7 +8,7 @@ export function useTeamSeasons(user, team, selectedSeason) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (seasonOverride) => {
     if (!supabase || !user?.id || !team?.onlineId) {
       setSeasons([]);
       setActiveTeamSeason(null);
@@ -35,7 +35,8 @@ export function useTeamSeasons(user, team, selectedSeason) {
     }
 
     const nextSeasons = seasonRows || [];
-    const selected = nextSeasons.find((item) => item.season_name === selectedSeason) || null;
+    const seasonToSelect = seasonOverride || selectedSeason;
+    const selected = nextSeasons.find((item) => item.season_name === seasonToSelect) || null;
     setSeasons(nextSeasons);
     setActiveTeamSeason(selected);
 

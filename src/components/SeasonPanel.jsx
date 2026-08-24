@@ -126,14 +126,14 @@ export default function SeasonPanel({
         setLocalError(`Säsongen skapades, men truppen kunde inte färdigställas: ${rosterError.message}`);
         setBusy(false);
         onSeasonChange?.(currentDefinition.name);
-        await onRefresh?.();
+        await onRefresh?.(currentDefinition.name);
         setView("overview");
         return;
       }
     }
 
     onSeasonChange?.(currentDefinition.name);
-    await onRefresh?.();
+    await onRefresh?.(currentDefinition.name);
     setBusy(false);
     setView("overview");
     onToast?.("Säsongen startades");
