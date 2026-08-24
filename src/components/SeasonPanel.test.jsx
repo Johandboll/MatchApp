@@ -41,9 +41,33 @@ beforeEach(() => {
 test("keeps the overview compact until the user starts a new season", () => {
   renderSeasonPanel();
 
-  expect(screen.getByText("Vald säsong")).toBeVisible();
+  expect(screen.getByText("Nuvarande trupp")).toBeVisible();
   expect(screen.getByRole("button", { name: "Starta ny säsong" })).toBeVisible();
   expect(screen.queryByText("1. Den nya säsongen")).not.toBeInTheDocument();
+});
+
+test("shows the current season once without a duplicate status card", () => {
+  const currentSeason = {
+    ...season,
+    team_season_id: "season-2",
+    season_name: "2026/2027",
+    display_name: "P15",
+    starts_on: "2026-06-01",
+    ends_on: "2027-05-31",
+    active_player_count: 4
+  };
+
+  renderSeasonPanel({
+    selectedSeason: "2026/2027",
+    seasons: [currentSeason, season],
+    activeTeamSeason: currentSeason
+  });
+
+  expect(screen.getByText("Aktuell säsong")).toBeVisible();
+  expect(screen.getByText("P15")).toBeVisible();
+  expect(screen.getByText("Visas nu")).toBeVisible();
+  expect(screen.queryByText("Aktuell säsong är klar")).not.toBeInTheDocument();
+  expect(screen.getByText("Tidigare säsonger")).toBeVisible();
 });
 
 test("walks through details and roster source without creating early", async () => {

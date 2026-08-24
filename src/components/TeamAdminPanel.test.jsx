@@ -143,7 +143,7 @@ test("opens season management in its own dialog", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Hantera säsong" }));
 
   expect(screen.getByRole("dialog", { name: "Hantera säsong" })).toBeVisible();
-  expect(screen.getByText("Vald säsong")).toBeVisible();
+  expect(screen.getByText("Nuvarande trupp")).toBeVisible();
   expect(screen.getByRole("button", { name: "Starta ny säsong" })).toBeVisible();
 });
 

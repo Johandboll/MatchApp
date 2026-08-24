@@ -25,7 +25,8 @@ export default function SeasonPanel({
   const currentDefinition = useMemo(() => getCurrentSeasonDefinition(today || new Date()), [today]);
   const currentSeason = seasons.find((season) => season.season_name === currentDefinition.name) || null;
   const sourceSeason = getLatestSeasonBefore(seasons, currentDefinition.name);
-  const previousSeasons = seasons.filter((season) => season.team_season_id !== activeTeamSeason?.team_season_id);
+  const overviewSeason = currentSeason || activeTeamSeason;
+  const previousSeasons = seasons.filter((season) => season.team_season_id !== overviewSeason?.team_season_id);
   const [view, setView] = useState("overview");
   const [step, setStep] = useState(1);
   const [displayName, setDisplayName] = useState("");
@@ -158,29 +159,27 @@ export default function SeasonPanel({
           {view === "overview" && (
             <>
               <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-                <div className="text-xs font-bold uppercase tracking-wide text-sky-700">Vald säsong</div>
+                <div className="text-xs font-bold uppercase tracking-wide text-sky-700">{currentSeason ? "Aktuell säsong" : "Nuvarande trupp"}</div>
                 {loading ? (
                   <div className="mt-2 text-sm text-slate-600">Hämtar säsongen...</div>
-                ) : activeTeamSeason ? (
+                ) : overviewSeason ? (
                   <div className="mt-2">
-                    <div className="text-xl font-extrabold text-slate-900">{activeTeamSeason.display_name}</div>
-                    <div className="text-sm font-semibold text-slate-700">{activeTeamSeason.season_name}</div>
-                    <div className="mt-1 text-xs text-slate-500">{formatSeasonDates(activeTeamSeason)}{formatSeasonDates(activeTeamSeason) ? " · " : ""}{activeTeamSeason.active_player_count} spelare</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-xl font-extrabold text-slate-900">{overviewSeason.display_name}</div>
+                      {selectedSeason === overviewSeason.season_name && <span className="rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">Visas nu</span>}
+                    </div>
+                    <div className="text-sm font-semibold text-slate-700">{overviewSeason.season_name}</div>
+                    <div className="mt-1 text-xs text-slate-500">{formatSeasonDates(overviewSeason)}{formatSeasonDates(overviewSeason) ? " · " : ""}{overviewSeason.active_player_count} spelare</div>
+                    {selectedSeason !== overviewSeason.season_name && (
+                      <button type="button" onClick={() => onSeasonChange?.(overviewSeason.season_name)} className="mt-3 rounded-xl bg-sky-600 px-3 py-2 text-sm font-bold text-white">Visa aktuell säsong</button>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-2 text-sm text-slate-600">Ingen databaskopplad säsong är vald.</div>
                 )}
               </section>
 
-              {currentSeason ? (
-                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                  <div className="font-extrabold text-emerald-900">Aktuell säsong är klar</div>
-                  <div className="mt-1 text-sm text-emerald-800">{currentDefinition.name} finns redan för laget.</div>
-                  {selectedSeason !== currentDefinition.name && (
-                    <button type="button" onClick={() => onSeasonChange?.(currentDefinition.name)} className="mt-3 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-bold text-white">Visa aktuell säsong</button>
-                  )}
-                </div>
-              ) : (
+              {!currentSeason && (
                 <button type="button" onClick={startWizard} className="mt-4 w-full rounded-2xl bg-sky-600 px-4 py-3 text-base font-extrabold text-white hover:bg-sky-700">Starta ny säsong</button>
               )}
 
@@ -191,7 +190,7 @@ export default function SeasonPanel({
                     {previousSeasons.map((season) => (
                       <button key={season.team_season_id} type="button" onClick={() => onSeasonChange?.(season.season_name)} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-b-0 hover:bg-slate-50">
                         <span><span className="block font-bold text-slate-900">{season.display_name}</span><span className="block text-xs text-slate-500">{season.season_name} · {season.active_player_count} spelare</span></span>
-                        <span className="text-sm font-semibold text-sky-700">Visa</span>
+                        <span className="text-sm font-semibold text-sky-700">{selectedSeason === season.season_name ? "Visas nu" : "Visa"}</span>
                       </button>
                     ))}
                   </div>
