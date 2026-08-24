@@ -582,7 +582,7 @@ export default function TeamAdminPanel({
                 onClick={() => setSeasonPanelOpen(true)}
                 className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700"
               >
-                Säsong
+                Hantera säsong
               </button>
             )}
             <button

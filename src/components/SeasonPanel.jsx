@@ -189,12 +189,12 @@ export default function SeasonPanel({
   const inputClass = "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
 
   return (
-    <div className="fixed inset-0 z-[80] overscroll-contain bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Säsong">
+    <div className="fixed inset-0 z-[80] overscroll-contain bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Hantera säsong">
       <div className="mx-auto flex h-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">{team?.name}</div>
-            <h2 className="text-xl font-extrabold text-slate-900">Säsong</h2>
+            <h2 className="text-xl font-extrabold text-slate-900">Hantera säsong</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             Stäng

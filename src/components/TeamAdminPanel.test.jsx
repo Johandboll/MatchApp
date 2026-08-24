@@ -140,9 +140,9 @@ test("opens season management in its own dialog", async () => {
   expect(screen.getByRole("button", { name: "Medlemmar" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "Säsonger" })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Säsong" }));
+  fireEvent.click(screen.getByRole("button", { name: "Hantera säsong" }));
 
-  expect(screen.getByRole("dialog", { name: "Säsong" })).toBeVisible();
+  expect(screen.getByRole("dialog", { name: "Hantera säsong" })).toBeVisible();
   expect(screen.getByText("Vald säsong")).toBeVisible();
   expect(screen.getByRole("button", { name: "Starta ny säsong" })).toBeVisible();
 });
@@ -170,7 +170,7 @@ test("starts the new season flow one step at a time", async () => {
 
   await screen.findByText("Anna");
 
-  fireEvent.click(screen.getByRole("button", { name: "Säsong" }));
+  fireEvent.click(screen.getByRole("button", { name: "Hantera säsong" }));
   fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
 
   expect(screen.getByText("1. Den nya säsongen")).toBeVisible();
