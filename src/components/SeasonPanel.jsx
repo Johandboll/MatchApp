@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { getCurrentSeasonDefinition, getLatestSeasonBefore } from "../lib/seasonHelpers";
 
@@ -20,6 +20,7 @@ export default function SeasonPanel({
   onRefresh,
   onToast,
   onClose,
+  directStart = false,
   today = null
 }) {
   const currentDefinition = useMemo(() => getCurrentSeasonDefinition(today || new Date()), [today]);
@@ -38,16 +39,7 @@ export default function SeasonPanel({
   const latestPlayers = sourceRoster.filter((player) => player.included && player.active);
   const previousPlayers = sourceRoster.filter((player) => !(player.included && player.active));
 
-  useEffect(() => {
-    if (!open) return;
-    setView("overview");
-    setStep(1);
-    setLocalError("");
-  }, [open, team?.onlineId]);
-
-  if (!open) return null;
-
-  const startWizard = async () => {
+  const startWizard = useCallback(async () => {
     setDisplayName(sourceSeason?.display_name || team?.name || "");
     setSourceRoster([]);
     setSelectedPlayerIds(new Set());
@@ -76,7 +68,17 @@ export default function SeasonPanel({
         .filter((player) => player.included && player.active)
         .map((player) => player.player_identity_id)
     ));
-  };
+  }, [sourceSeason, team?.name, team?.onlineId]);
+
+  useEffect(() => {
+    if (!open) return;
+    setView("overview");
+    setStep(1);
+    setLocalError("");
+    if (directStart && !currentSeason) startWizard();
+  }, [currentSeason, directStart, open, startWizard, team?.onlineId]);
+
+  if (!open) return null;
 
   const togglePlayer = (playerId) => {
     setSelectedPlayerIds((current) => {
@@ -136,8 +138,9 @@ export default function SeasonPanel({
     onSeasonChange?.(currentDefinition.name);
     await onRefresh?.(currentDefinition.name);
     setBusy(false);
-    setView("overview");
     onToast?.("Säsongen startades");
+    if (directStart) onClose?.();
+    else setView("overview");
   };
 
   return (

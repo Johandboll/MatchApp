@@ -452,7 +452,7 @@ export default function SeasonCenter({
         <div className="mx-auto max-w-7xl px-4 py-3">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-slate-500">Säsongscenter</div>
+              <div className="text-xs font-semibold text-slate-500">Historik & statistik</div>
               <h1 className="truncate text-xl font-extrabold text-slate-900">
                 {selectedTeam?.name || "Valt lag"}
               </h1>
@@ -543,13 +543,18 @@ export default function SeasonCenter({
 
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
-              {onSeasonChange && (
+              {onSeasonChange && seasonOptions.length > 1 && (
                 <SeasonDropdown
                   label="Välj säsong"
                   value={selectedSeason || ""}
                   options={seasonOptions.map((season) => ({ value: season, label: season }))}
                   onChange={onSeasonChange}
                 />
+              )}
+              {seasonOptions.length === 1 && (
+                <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
+                  {seasonOptions[0]}
+                </div>
               )}
               {teams.length > 1 && onSelectTeam && (
                 <SeasonDropdown
@@ -707,7 +712,7 @@ export default function SeasonCenter({
                   </div>
                 ) : (
                   <div className="mt-3 rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500">
-                    Inga matcher finns i det valda urvalet ännu.
+                    Det finns inga registrerade matcher för den här säsongen.
                   </div>
                 )}
               </section>

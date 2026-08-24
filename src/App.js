@@ -222,6 +222,7 @@ export default function App() {
   const [currentHalf, setCurrentHalf] = useState(() => saved?.currentHalf || 1);
   const [viewMode, setViewMode] = useState(() => saved?.viewMode || "match");
   const [seasonOpen, setSeasonOpen] = useState(false);
+  const [historySeason, setHistorySeason] = useState("");
   const [teamAdminOpen, setTeamAdminOpen] = useState(false);
   const [systemAdminOpen, setSystemAdminOpen] = useState(false);
   const [privacyNoticeOpen, setPrivacyNoticeOpen] = useState(false);
@@ -414,13 +415,36 @@ export default function App() {
     }
   }, [seasonOptions, selectedSeason]);
 
+  const historyMatches = useMemo(
+    () => onlineMatches.online
+      ? [...onlineMatches.matches, ...pendingOnlineMatches.filter((match) => match.teamId === selectedTeamId)]
+      : filterSeasonMatchesByTeam(seasonMatches, selectedTeamId),
+    [onlineMatches.matches, onlineMatches.online, pendingOnlineMatches, seasonMatches, selectedTeamId]
+  );
+  const historySeasonOptions = useMemo(
+    () => Array.from(new Set(historyMatches.map(getMatchSeason).filter(Boolean)))
+      .sort((a, b) => getSeasonStartYear(b) - getSeasonStartYear(a)),
+    [historyMatches]
+  );
+
+  useEffect(() => {
+    if (historySeasonOptions.includes(historySeason)) return;
+    const preferred = historySeasonOptions.includes(selectedSeason) ? selectedSeason : historySeasonOptions[0] || "";
+    setHistorySeason(preferred);
+  }, [historySeason, historySeasonOptions, selectedSeason]);
+
+  const historyMatchesForView = useMemo(
+    () => historySeason ? filterSeasonMatchesByTeam(historyMatches, selectedTeamId, historySeason) : [],
+    [historyMatches, historySeason, selectedTeamId]
+  );
+
   const seasonSummary = useMemo(
-    () => buildSeasonSummary(seasonMatchesForView, selectedTeam ? [selectedTeam] : teamsData),
-    [seasonMatchesForView, selectedTeam]
+    () => buildSeasonSummary(historyMatchesForView, selectedTeam ? [selectedTeam] : teamsData),
+    [historyMatchesForView, selectedTeam]
   );
   const seasonKpis = useMemo(
-    () => buildSeasonKpis(seasonMatchesForView, seasonSummary.fieldPlayers),
-    [seasonMatchesForView, seasonSummary.fieldPlayers]
+    () => buildSeasonKpis(historyMatchesForView, seasonSummary.fieldPlayers),
+    [historyMatchesForView, seasonSummary.fieldPlayers]
   );
 
   const cupLabel = useMemo(() => {
@@ -1132,13 +1156,13 @@ export default function App() {
     step
   ]);
 
-  const exportSeasonJson = useCallback(() => {
+  const exportSeasonJson = useCallback((seasonOverride = selectedSeason, matchesOverride = seasonMatchesForView) => {
     const data = {
       exportedAt: new Date().toISOString(),
       teamId: selectedTeamId || null,
       teamName: selectedTeam?.name || null,
-      season: selectedSeason,
-      matches: seasonMatchesForView
+      season: seasonOverride,
+      matches: matchesOverride
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -1150,7 +1174,7 @@ export default function App() {
         .replace(/[^\p{L}\p{N}\-_ ]/gu, "")
         .trim() || "season";
     link.href = url;
-    link.download = `matchapp_season_${teamPart}_${selectedSeason.replace("/", "-")}_${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `matchapp_season_${teamPart}_${seasonOverride.replace("/", "-")}_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1227,53 +1251,6 @@ export default function App() {
     },
     [canDeleteFromSelectedTeam, onlineMatches, pendingOnlineMatches, showToast]
   );
-
-  const handleClearSeason = useCallback(async () => {
-    if (!canDeleteFromSelectedTeam) {
-      showToast("Endast ägare kan rensa säsongen");
-      return;
-    }
-
-    if (seasonMatchesForView.length === 0) {
-      showToast("Säsongen är redan tom");
-      return;
-    }
-
-    if (onlineMatches.online) {
-      setPendingOnlineMatches((prev) =>
-        prev.filter((match) => !(match.teamId === selectedTeamId && getMatchSeason(match) === selectedSeason))
-      );
-
-      for (const match of seasonMatchesForView) {
-        if (match.pendingSync) continue;
-        const { error } = await onlineMatches.deleteMatch(match.id);
-        if (error) {
-          showToast(`Kunde inte rensa online: ${error.message}`);
-          return;
-        }
-      }
-
-      showToast("Säsongen rensad");
-      setSeasonOpen(false);
-      return;
-    }
-
-    setSeasonMatches((prev) =>
-      prev.filter(
-        (match) => !((selectedTeamId ? match.teamId === selectedTeamId : true) && getMatchSeason(match) === selectedSeason)
-      )
-    );
-
-    showToast("Säsongen rensad");
-    setSeasonOpen(false);
-  }, [
-    canDeleteFromSelectedTeam,
-    onlineMatches,
-    seasonMatchesForView,
-    selectedSeason,
-    selectedTeamId,
-    showToast
-  ]);
 
   const getSeasonMatchKey = useCallback((match) => {
     const result = match?.result || {};
@@ -1804,7 +1781,7 @@ export default function App() {
                 onClick={() => setSeasonOpen(true)}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Säsong
+                Historik & statistik
               </button>
               {selectedTeam?.onlineId && (
                 <button
@@ -1886,23 +1863,21 @@ export default function App() {
       <SeasonCenter
         open={seasonOpen}
         selectedTeam={selectedTeam}
-        teams={availableTeams}
         selectedTeamId={selectedTeamId}
-        onSelectTeam={handleSelectTeam}
-        selectedSeason={selectedSeason}
-        seasonOptions={seasonOptions}
-        onSeasonChange={setSelectedSeason}
+        selectedSeason={historySeason}
+        seasonOptions={historySeasonOptions}
+        onSeasonChange={setHistorySeason}
         seasonKpis={seasonKpis}
-        onExportBackup={exportSeasonJson}
+        onExportBackup={() => exportSeasonJson(historySeason, historyMatchesForView)}
         onImportBackup={handleImportSeasonBackup}
         onClose={() => setSeasonOpen(false)}
         seasonSummary={seasonSummary}
-        matches={seasonMatchesForView}
+        matches={historyMatchesForView}
         onDeleteMatch={handleDeleteSeasonMatch}
-        onClearSeason={handleClearSeason}
+        onClearSeason={null}
         onExportMatchExcel={downloadExcel}
         onConfirm={requestConfirm}
-        canManageSeason={canDeleteFromSelectedTeam}
+        canManageSeason={false}
       />
 
       <TeamAdminPanel

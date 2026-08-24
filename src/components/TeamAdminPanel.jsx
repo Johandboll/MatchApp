@@ -86,8 +86,8 @@ export default function TeamAdminPanel({
   const [transferTarget, setTransferTarget] = useState(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
   const [seasonPanelOpen, setSeasonPanelOpen] = useState(false);
-  const [teamSeasonStatuses, setTeamSeasonStatuses] = useState({});
   const currentSeasonName = useMemo(() => getCurrentSeasonDefinition().name, []);
+  const hasCurrentSeason = teamSeasons.some((season) => season.season_name === currentSeasonName);
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
   const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
@@ -236,28 +236,6 @@ export default function TeamAdminPanel({
     loadMembers();
     loadPlayers();
   }, [loadMembers, loadPlayers, open]);
-
-  useEffect(() => {
-    if (!open || !supabase || teams.length === 0) return undefined;
-    let cancelled = false;
-
-    const loadSeasonStatuses = async () => {
-      const entries = await Promise.all(teams.map(async (item) => {
-        if (!item.onlineId) return [item.id, null];
-        const { data, error: seasonStatusError } = await supabase.rpc("list_team_seasons", {
-          target_team_id: item.onlineId
-        });
-        if (seasonStatusError) return [item.id, null];
-        return [item.id, (data || []).some((season) => season.season_name === currentSeasonName)];
-      }));
-      if (!cancelled) setTeamSeasonStatuses(Object.fromEntries(entries));
-    };
-
-    loadSeasonStatuses();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentSeasonName, open, teams]);
 
   useEffect(() => {
     if (!canLoad || tab !== "members") return;
@@ -601,15 +579,6 @@ export default function TeamAdminPanel({
             <h2 className="break-words text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
           <div className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:items-center">
-            {canManageCurrentTeam && team?.onlineId && (
-              <button
-                type="button"
-                onClick={() => setSeasonPanelOpen(true)}
-                className="min-w-0 flex-[1.35] whitespace-nowrap rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
-              >
-                Hantera säsong
-              </button>
-            )}
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
@@ -667,16 +636,6 @@ export default function TeamAdminPanel({
                         <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-slate-600 ring-1 ring-slate-200">
                           {roleLabel[item.membershipRole] || item.membershipRole || "Användare"}
                         </span>
-                        {teamSeasonStatuses[item.id] === true && (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">
-                            Aktuell säsong klar
-                          </span>
-                        )}
-                        {teamSeasonStatuses[item.id] === false && (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
-                            Ny säsong saknas
-                          </span>
-                        )}
                         {!canManage && (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500">
                             Läs/registrera
@@ -730,6 +689,22 @@ export default function TeamAdminPanel({
                   )}
                 </div>
               )}
+            </section>
+          )}
+
+          {canManageCurrentTeam && team?.onlineId && !hasCurrentSeason && (
+            <section className="mb-3 flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-sky-950">Dags för ny säsong</h3>
+                <p className="mt-0.5 text-xs text-sky-800">Skapa {currentSeasonName} och välj vilka spelare som fortsätter.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSeasonPanelOpen(true)}
+                className="shrink-0 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700"
+              >
+                Starta ny säsong
+              </button>
             </section>
           )}
 
@@ -1228,6 +1203,7 @@ export default function TeamAdminPanel({
       </div>
       <SeasonPanel
         open={seasonPanelOpen}
+        directStart
         team={team}
         selectedSeason={selectedSeason}
         onSeasonChange={onSeasonChange}

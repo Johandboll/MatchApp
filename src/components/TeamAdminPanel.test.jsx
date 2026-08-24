@@ -113,7 +113,7 @@ test("shows leave team to a regular user", async () => {
   expect(screen.queryByRole("button", { name: "Ta bort lag" })).not.toBeInTheDocument();
 });
 
-test("opens season management in its own dialog", async () => {
+test("offers one direct action when a new season is needed", async () => {
   renderPanel({
     selectedSeason: "2026/2027",
     teamSeasons: [{
@@ -140,11 +140,12 @@ test("opens season management in its own dialog", async () => {
   expect(screen.getByRole("button", { name: "Medlemmar" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "Säsonger" })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Hantera säsong" }));
+  expect(screen.getByText("Dags för ny säsong")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
 
   expect(screen.getByRole("dialog", { name: "Hantera säsong" })).toBeVisible();
-  expect(screen.getByText("Nuvarande trupp")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Starta ny säsong" })).toBeVisible();
+  expect(screen.getByText("1. Kontrollera säsongen")).toBeVisible();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Fortsätt" })).toBeEnabled());
 });
 
 test("starts the new season flow one step at a time", async () => {
@@ -170,7 +171,6 @@ test("starts the new season flow one step at a time", async () => {
 
   await screen.findByText("Anna");
 
-  fireEvent.click(screen.getByRole("button", { name: "Hantera säsong" }));
   fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
 
   expect(screen.getByText("1. Kontrollera säsongen")).toBeVisible();
