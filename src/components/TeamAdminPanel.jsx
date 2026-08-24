@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
+import SeasonPanel from "./SeasonPanel";
 
 const roleLabel = {
   owner: "Lagägare",
@@ -47,7 +48,15 @@ export default function TeamAdminPanel({
   onConfirm,
   matches = [],
   currentUserRole,
-  onOpenPrivacyNotice
+  onOpenPrivacyNotice,
+  selectedSeason,
+  onSeasonChange,
+  teamSeasons = [],
+  activeTeamSeason,
+  seasonRoster = [],
+  seasonLoading = false,
+  seasonError = "",
+  onSeasonRefresh
 }) {
   useDocumentScrollLock(open);
   const [tab, setTab] = useState("players");
@@ -75,6 +84,7 @@ export default function TeamAdminPanel({
   const [deleteError, setDeleteError] = useState("");
   const [transferTarget, setTransferTarget] = useState(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
+  const [seasonPanelOpen, setSeasonPanelOpen] = useState(false);
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
   const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
@@ -566,6 +576,15 @@ export default function TeamAdminPanel({
             <h2 className="text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {canManageCurrentTeam && team?.onlineId && (
+              <button
+                type="button"
+                onClick={() => setSeasonPanelOpen(true)}
+                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700"
+              >
+                Säsong
+              </button>
+            )}
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
@@ -1172,6 +1191,20 @@ export default function TeamAdminPanel({
 
         </div>
       </div>
+      <SeasonPanel
+        open={seasonPanelOpen}
+        team={team}
+        selectedSeason={selectedSeason}
+        onSeasonChange={onSeasonChange}
+        seasons={teamSeasons}
+        activeTeamSeason={activeTeamSeason}
+        roster={seasonRoster}
+        loading={seasonLoading}
+        error={seasonError}
+        onRefresh={onSeasonRefresh}
+        onToast={onToast}
+        onClose={() => setSeasonPanelOpen(false)}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { useAccountAccess } from "./hooks/useAccountAccess";
 import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import { useSupabaseMatches } from "./hooks/useSupabaseMatches";
 import { useSupabaseTeams } from "./hooks/useSupabaseTeams";
+import { useTeamSeasons } from "./hooks/useTeamSeasons";
 import { useWhatsNew } from "./hooks/useWhatsNew";
 import { exportMatchExcel } from "./lib/exportMatchExcel";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
@@ -239,6 +240,8 @@ export default function App() {
     return availableTeams.find((team) => team.id === selectedTeamId) || null;
   }, [availableTeams, selectedTeamId, externalTeamData]);
 
+  const onlineTeamSeasons = useTeamSeasons(auth.user, selectedTeam, selectedSeason);
+
   const activeMatchTeamUnavailable = isActiveMatchTeamUnavailable({
     step,
     activeMatchTeamId,
@@ -309,11 +312,22 @@ export default function App() {
     if (step === 2 && activeMatchTeamId === selectedTeamId && matchRoster.length > 0) {
       return matchRoster;
     }
+    if (onlineTeamSeasons.activeTeamSeason) {
+      return onlineTeamSeasons.roster
+        .filter((player) => player.included && player.active)
+        .map((player) => ({
+          id: player.player_identity_id,
+          nr: Number(player.shirt_number),
+          shirtNumber: Number(player.shirt_number),
+          name: player.display_name,
+          role: player.player_role === "goalkeeper" ? "goalkeeper" : undefined
+        }));
+    }
     if (selectedTeam && Array.isArray(selectedTeam.players) && selectedTeam.players.length > 0) {
       return selectedTeam.players;
     }
     return [];
-  }, [activeMatchTeamId, matchRoster, selectedTeam, selectedTeamId, step]);
+  }, [activeMatchTeamId, matchRoster, onlineTeamSeasons.activeTeamSeason, onlineTeamSeasons.roster, selectedTeam, selectedTeamId, step]);
 
   const allPlayers = useMemo(() => {
     const normalize = (player, index = 0) => {
@@ -386,7 +400,13 @@ export default function App() {
         : filterSeasonMatchesByTeam(seasonMatches, selectedTeamId),
     [onlineMatches.matches, onlineMatches.online, pendingOnlineMatches, seasonMatches, selectedTeamId]
   );
-  const seasonOptions = useMemo(() => buildSeasonOptions(), []);
+  const seasonOptions = useMemo(
+    () => Array.from(new Set([
+      ...buildSeasonOptions(),
+      ...onlineTeamSeasons.seasons.map((item) => item.season_name)
+    ])),
+    [onlineTeamSeasons.seasons]
+  );
 
   useEffect(() => {
     if (!seasonOptions.includes(selectedSeason)) {
@@ -1902,6 +1922,14 @@ export default function App() {
         onConfirm={requestConfirm}
         matches={matchesForPlayerImport}
         currentUserRole={selectedTeam?.membershipRole}
+        selectedSeason={selectedSeason}
+        onSeasonChange={setSelectedSeason}
+        teamSeasons={onlineTeamSeasons.seasons}
+        activeTeamSeason={onlineTeamSeasons.activeTeamSeason}
+        seasonRoster={onlineTeamSeasons.roster}
+        seasonLoading={onlineTeamSeasons.loading}
+        seasonError={onlineTeamSeasons.error}
+        onSeasonRefresh={onlineTeamSeasons.refresh}
         onOpenPrivacyNotice={() => {
           setPrivacyNoticeRequired(false);
           setPrivacyNoticeOpen(true);

@@ -112,3 +112,68 @@ test("shows leave team to a regular user", async () => {
   expect(await screen.findByRole("button", { name: "Lämna laget" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "Ta bort lag" })).not.toBeInTheDocument();
 });
+
+test("opens season management in its own dialog", async () => {
+  renderPanel({
+    selectedSeason: "2026/2027",
+    teamSeasons: [{
+      team_season_id: "season-1",
+      season_name: "2026/2027",
+      display_name: "P19",
+      starts_on: "2026-06-01",
+      ends_on: "2027-05-31",
+      active_player_count: 2
+    }],
+    activeTeamSeason: {
+      team_season_id: "season-1",
+      season_name: "2026/2027",
+      display_name: "P19",
+      starts_on: "2026-06-01",
+      ends_on: "2027-05-31",
+      active_player_count: 2
+    }
+  });
+
+  await screen.findByText("Anna");
+
+  expect(screen.getByRole("button", { name: "Spelare" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Medlemmar" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Säsonger" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Säsong" }));
+
+  expect(screen.getByRole("dialog", { name: "Säsong" })).toBeVisible();
+  expect(screen.getByText("Vald säsong")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Starta ny säsong" })).toBeVisible();
+});
+
+test("starts the new season flow one step at a time", async () => {
+  renderPanel({
+    selectedSeason: "2026/2027",
+    teamSeasons: [{
+      team_season_id: "season-1",
+      season_name: "2026/2027",
+      display_name: "P19",
+      starts_on: "2026-06-01",
+      ends_on: "2027-05-31",
+      active_player_count: 2
+    }],
+    activeTeamSeason: {
+      team_season_id: "season-1",
+      season_name: "2026/2027",
+      display_name: "P19",
+      starts_on: "2026-06-01",
+      ends_on: "2027-05-31",
+      active_player_count: 2
+    }
+  });
+
+  await screen.findByText("Anna");
+
+  fireEvent.click(screen.getByRole("button", { name: "Säsong" }));
+  fireEvent.click(screen.getByRole("button", { name: "Starta ny säsong" }));
+
+  expect(screen.getByText("1. Den nya säsongen")).toBeVisible();
+  expect(screen.getByDisplayValue("2027/2028")).toBeVisible();
+  expect(screen.queryByText("2. Välj trupp att utgå från")).not.toBeInTheDocument();
+});
