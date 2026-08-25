@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useDocumentScrollLock } from "../hooks/useDocumentScrollLock";
+import { getCurrentSeasonDefinition } from "../lib/seasonHelpers";
+import SeasonPanel from "./SeasonPanel";
 
 const roleLabel = {
   owner: "Lagägare",
@@ -47,7 +49,14 @@ export default function TeamAdminPanel({
   onConfirm,
   matches = [],
   currentUserRole,
-  onOpenPrivacyNotice
+  onOpenPrivacyNotice,
+  selectedSeason,
+  onSeasonChange,
+  teamSeasons = [],
+  activeTeamSeason,
+  seasonLoading = false,
+  seasonError = "",
+  onSeasonRefresh
 }) {
   useDocumentScrollLock(open);
   const [tab, setTab] = useState("players");
@@ -75,6 +84,9 @@ export default function TeamAdminPanel({
   const [deleteError, setDeleteError] = useState("");
   const [transferTarget, setTransferTarget] = useState(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
+  const [seasonPanelOpen, setSeasonPanelOpen] = useState(false);
+  const currentSeasonName = useMemo(() => getCurrentSeasonDefinition().name, []);
+  const hasCurrentSeason = teamSeasons.some((season) => season.season_name === currentSeasonName);
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
   const isCurrentUserOwner = currentUserRole === "owner";
   const canCreateTeam = Boolean(onTeamCreated && accountAccess?.canCreateTeam);
@@ -512,13 +524,18 @@ export default function TeamAdminPanel({
     setBusy(true);
     setPlayerError("");
 
-    const { data, error: mutationError } = await supabase.rpc("upsert_team_player", {
+    const seasonId = activeTeamSeason?.team_season_id;
+    const { data, error: mutationError } = await supabase.rpc(
+      seasonId ? "upsert_team_season_player" : "upsert_team_player",
+      {
       target_team_id: team.onlineId,
+      ...(seasonId ? { target_team_season_id: seasonId } : {}),
       player_id: playerForm.id,
       new_shirt_number: Number(playerForm.shirtNumber),
       player_name: playerForm.name,
       player_role: playerForm.role
-    });
+      }
+    );
 
     if (mutationError) {
       setPlayerError(mutationError.message);
@@ -528,6 +545,7 @@ export default function TeamAdminPanel({
 
     setPlayers(data || []);
     onPlayersChanged?.(data || []);
+    if (seasonId) await onSeasonRefresh?.(selectedSeason);
     resetPlayerForm();
     setBusy(false);
     onToast?.("Spelare sparad");
@@ -537,11 +555,16 @@ export default function TeamAdminPanel({
     setBusy(true);
     setPlayerError("");
 
-    const { data, error: mutationError } = await supabase.rpc("set_team_player_active", {
+    const seasonId = activeTeamSeason?.team_season_id;
+    const { data, error: mutationError } = await supabase.rpc(
+      seasonId ? "set_team_season_player_active" : "set_team_player_active",
+      {
       target_team_id: team.onlineId,
+      ...(seasonId ? { target_team_season_id: seasonId } : {}),
       player_id: player.id,
       is_active: active
-    });
+      }
+    );
 
     if (mutationError) {
       setPlayerError(mutationError.message);
@@ -551,6 +574,7 @@ export default function TeamAdminPanel({
 
     setPlayers(data || []);
     onPlayersChanged?.(data || []);
+    if (seasonId) await onSeasonRefresh?.(selectedSeason);
     setBusy(false);
     onToast?.(active ? "Spelare aktiverad" : "Spelare inaktiverad");
   };
@@ -560,23 +584,32 @@ export default function TeamAdminPanel({
   return (
     <div className="fixed inset-0 z-50 overscroll-contain bg-slate-950/40 p-3 sm:p-6">
       <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <div>
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Lag</div>
-            <h2 className="text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
+            <h2 className="break-words text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:items-center">
+            {canManageCurrentTeam && team?.onlineId && !hasCurrentSeason && (
+              <button
+                type="button"
+                onClick={() => setSeasonPanelOpen(true)}
+                className="min-w-0 flex-[1.4] whitespace-nowrap rounded-xl bg-sky-600 px-2 py-1.5 text-sm font-semibold text-white hover:bg-sky-700 sm:flex-none sm:px-3"
+              >
+                Ny säsong
+              </button>
+            )}
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
             >
               Integritet
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:px-3"
             >
               Stäng
             </button>
@@ -1172,6 +1205,19 @@ export default function TeamAdminPanel({
 
         </div>
       </div>
+      <SeasonPanel
+        open={seasonPanelOpen}
+        team={team}
+        selectedSeason={selectedSeason}
+        onSeasonChange={onSeasonChange}
+        seasons={teamSeasons}
+        activeTeamSeason={activeTeamSeason}
+        loading={seasonLoading}
+        error={seasonError}
+        onRefresh={onSeasonRefresh}
+        onToast={onToast}
+        onClose={() => setSeasonPanelOpen(false)}
+      />
     </div>
   );
 }

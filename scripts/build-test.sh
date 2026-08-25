@@ -22,5 +22,6 @@ if [ "${REACT_APP_SUPABASE_ANON_KEY}" = "PASTE_TEST_ANON_KEY_HERE" ]; then
   exit 1
 fi
 
+export REACT_APP_APP_VERSION="${npm_package_version}-test"
 node scripts/write-version.js
 PUBLIC_URL=/test REACT_APP_BUILD_TIME=$(node -p "require('./public/version.json').buildTime") react-scripts build

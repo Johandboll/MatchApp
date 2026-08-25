@@ -80,6 +80,34 @@ test("cancels inline player editing without saving", async () => {
   expect(supabase.rpc).not.toHaveBeenCalledWith("upsert_team_player", expect.anything());
 });
 
+test("keeps player administration in sync with the active season", async () => {
+  const onSeasonRefresh = jest.fn().mockResolvedValue();
+  renderPanel({
+    selectedSeason: "2026/2027",
+    teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027" }],
+    activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027" },
+    onSeasonRefresh
+  });
+  const anna = await screen.findByText("Anna");
+  const annaRow = anna.closest("div.border-b");
+
+  fireEvent.click(within(annaRow).getByRole("button", { name: "Ändra" }));
+  fireEvent.change(within(annaRow).getByRole("spinbutton", { name: "Spelarnummer" }), {
+    target: { value: "14" }
+  });
+  fireEvent.click(within(annaRow).getByRole("button", { name: "Spara" }));
+
+  await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith("upsert_team_season_player", {
+    target_team_id: "team-1",
+    target_team_season_id: "season-2",
+    player_id: "player-1",
+    new_shirt_number: 14,
+    player_name: "Anna",
+    player_role: "field"
+  }));
+  expect(onSeasonRefresh).toHaveBeenCalledWith("2026/2027");
+});
+
 test("shows undo and deletion time for a scheduled team", async () => {
   renderPanel({
     team: { ...team, deletionScheduledAt: "2026-08-12T12:00:00.000Z" }
