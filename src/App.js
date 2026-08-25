@@ -34,6 +34,7 @@ import {
   eventLabel,
   filterSeasonMatchesByTeam,
   getDefaultSeason,
+  getSeasonFromDate,
   isActiveMatchTeamUnavailable,
   getMatchSeason,
   getSeasonStartYear,
@@ -772,7 +773,14 @@ export default function App() {
   const handleMatchInfoChange = useCallback((event) => {
     const { name, value } = event.target;
     setMatchInfo((prev) => ({ ...prev, [name]: value }));
-  }, []);
+    if (name === "date" && value) {
+      const dateSeason = getSeasonFromDate(value);
+      if (dateSeason && dateSeason !== selectedSeason) {
+        setSelectedSeason(dateSeason);
+        setSelectedPlayers([]);
+      }
+    }
+  }, [selectedSeason]);
 
   const startMatch = useCallback(() => {
     if (!matchInfo?.date || !matchInfo?.opponent || !matchInfo?.location) {
@@ -785,20 +793,36 @@ export default function App() {
       return;
     }
 
-    const initialStats = {};
-    selectedPlayers.forEach((nr) => {
-      initialStats[nr] = {
-        ...emptyCounters(),
-        byHalf: { 1: emptyCounters(), 2: emptyCounters() }
-      };
-    });
-    setStats(initialStats);
-    setCurrentHalf(1);
-    setActiveMatchTeamId(selectedTeamId);
-    setMatchRoster(allPlayers);
-    setStep(2);
-    setViewMode("match");
-  }, [allPlayers, matchInfo, selectedPlayers, selectedTeamId]);
+    const beginMatch = () => {
+      const initialStats = {};
+      selectedPlayers.forEach((nr) => {
+        initialStats[nr] = {
+          ...emptyCounters(),
+          byHalf: { 1: emptyCounters(), 2: emptyCounters() }
+        };
+      });
+      setStats(initialStats);
+      setCurrentHalf(1);
+      setActiveMatchTeamId(selectedTeamId);
+      setMatchRoster(allPlayers);
+      setStep(2);
+      setViewMode("match");
+    };
+
+    const matchSeason = getSeasonFromDate(matchInfo.date);
+    if (matchSeason && matchSeason !== getDefaultSeason()) {
+      requestConfirm({
+        title: "Starta match i tidigare säsong?",
+        message: `Matchdatumet gör att matchen sparas i säsong ${matchSeason}.`,
+        confirmText: "Starta match",
+        cancelText: "Avbryt",
+        onConfirm: beginMatch
+      });
+      return;
+    }
+
+    beginMatch();
+  }, [allPlayers, matchInfo, requestConfirm, selectedPlayers, selectedTeamId]);
 
   const increment = useCallback(
     (nr, type) => {
@@ -973,13 +997,14 @@ export default function App() {
 
   const saveCurrentMatchToSeason = useCallback(async () => {
     const result = computeFinalScore(stats);
+    const matchSeason = getSeasonFromDate(matchInfo.date) || selectedSeason;
     const matchRecord = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
       createdAt: new Date().toISOString(),
       teamId: selectedTeamId,
       teamName: selectedTeam?.name || "",
-      season: selectedSeason,
-      matchInfo: { ...matchInfo, season: selectedSeason },
+      season: matchSeason,
+      matchInfo: { ...matchInfo, season: matchSeason },
       matchType: cupEnabled || cupPanelOpen ? "cup" : "series",
       cupName: cupEnabled || cupPanelOpen ? (cupName || "").trim() : "",
       cupPhase: cupEnabled || cupPanelOpen ? (cupPhase || "").trim() : "",
@@ -1861,6 +1886,8 @@ export default function App() {
           canStartMatch={canStartMatch}
           appVersion={APP_VERSION}
           changelogTooltip={CHANGELOG_TOOLTIP}
+          matchSeason={matchInfo.date ? getSeasonFromDate(matchInfo.date) : selectedSeason}
+          isPastSeason={Boolean(matchInfo.date && getSeasonFromDate(matchInfo.date) !== getDefaultSeason())}
         />
       )}
 

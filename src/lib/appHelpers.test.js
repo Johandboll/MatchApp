@@ -2,6 +2,7 @@ import {
   buildSeasonOptions,
   buildSeasonSummary,
   getDefaultSeason,
+  getSeasonFromDate,
   isActiveMatchTeamUnavailable
 } from "./appHelpers";
 
@@ -48,6 +49,11 @@ describe("buildSeasonSummary player identity", () => {
 });
 
 describe("season options", () => {
+  test("derives the season from the match date around June 1", () => {
+    expect(getSeasonFromDate("2026-05-31")).toBe("2025/2026");
+    expect(getSeasonFromDate("2026-06-01")).toBe("2026/2027");
+  });
+
   test("keeps the current season until May 31", () => {
     const date = new Date(2026, 4, 31, 12);
 
