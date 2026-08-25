@@ -235,12 +235,18 @@ export default function App() {
     return teamsData;
   }, [auth.user, onlineTeams.teams]);
 
-  const selectedTeam = useMemo(() => {
+  const selectedTeamRecord = useMemo(() => {
     if (selectedTeamId === EXTERNAL_TEAM_ID) return externalTeamData;
     return availableTeams.find((team) => team.id === selectedTeamId) || null;
   }, [availableTeams, selectedTeamId, externalTeamData]);
 
-  const onlineTeamSeasons = useTeamSeasons(auth.user, selectedTeam, selectedSeason);
+  const onlineTeamSeasons = useTeamSeasons(auth.user, selectedTeamRecord, selectedSeason);
+  const selectedTeam = useMemo(() => {
+    const seasonName = onlineTeamSeasons.activeTeamSeason?.display_name?.trim();
+    return seasonName && selectedTeamRecord
+      ? { ...selectedTeamRecord, name: seasonName }
+      : selectedTeamRecord;
+  }, [onlineTeamSeasons.activeTeamSeason, selectedTeamRecord]);
 
   const activeMatchTeamUnavailable = isActiveMatchTeamUnavailable({
     step,
@@ -1902,7 +1908,7 @@ export default function App() {
       <TeamAdminPanel
         open={teamAdminOpen}
         team={selectedTeam}
-        teams={availableTeams}
+        teams={availableTeams.map((item) => item.id === selectedTeam?.id ? selectedTeam : item)}
         selectedTeamId={selectedTeamId}
         onSelectTeam={handleSelectTeam}
         accountAccess={accountAccess}
