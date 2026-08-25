@@ -247,6 +247,12 @@ export default function App() {
       ? { ...selectedTeamRecord, name: seasonName }
       : selectedTeamRecord;
   }, [onlineTeamSeasons.activeTeamSeason, selectedTeamRecord]);
+  const seasonCenterTeam = useMemo(() => {
+    if (!selectedTeamRecord) return null;
+    const season = onlineTeamSeasons.seasons.find((item) => item.season_name === selectedSeason);
+    const seasonName = season?.display_name?.trim();
+    return seasonName ? { ...selectedTeamRecord, name: seasonName } : selectedTeamRecord;
+  }, [onlineTeamSeasons.seasons, selectedSeason, selectedTeamRecord]);
 
   const activeMatchTeamUnavailable = isActiveMatchTeamUnavailable({
     step,
@@ -1136,7 +1142,7 @@ export default function App() {
     const data = {
       exportedAt: new Date().toISOString(),
       teamId: selectedTeamId || null,
-      teamName: selectedTeam?.name || null,
+      teamName: seasonCenterTeam?.name || null,
       season: selectedSeason,
       matches: seasonMatchesForView
     };
@@ -1145,7 +1151,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const teamPart =
-      (selectedTeam?.name || selectedTeamId || "season")
+      (seasonCenterTeam?.name || selectedTeamId || "season")
         .toString()
         .replace(/[^\p{L}\p{N}\-_ ]/gu, "")
         .trim() || "season";
@@ -1156,7 +1162,7 @@ export default function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     showToast("Säsong (JSON) nedladdad");
-  }, [seasonMatchesForView, selectedSeason, selectedTeam, selectedTeamId, showToast]);
+  }, [seasonCenterTeam, seasonMatchesForView, selectedSeason, selectedTeamId, showToast]);
 
   const downloadExcel = useCallback(async (savedMatch = null) => {
     if (savedMatch) {
@@ -1885,7 +1891,7 @@ export default function App() {
 
       <SeasonCenter
         open={seasonOpen}
-        selectedTeam={selectedTeam}
+        selectedTeam={seasonCenterTeam}
         teams={availableTeams}
         selectedTeamId={selectedTeamId}
         onSelectTeam={handleSelectTeam}
