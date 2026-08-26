@@ -11,6 +11,7 @@ import SystemAdminPanel from "./components/SystemAdminPanel";
 import ConfirmDialog from "./components/ConfirmDialog";
 import AppUpdatePrompt from "./components/AppUpdatePrompt";
 import PrivacyNoticeModal, { PRIVACY_NOTICE_VERSION } from "./components/PrivacyNoticeModal";
+import HelpModal from "./components/HelpModal";
 import { getChangelogTooltip } from "./changelog";
 import { APP_VERSION } from "./config/appVersion";
 import { useAppUpdate } from "./hooks/useAppUpdate";
@@ -223,6 +224,8 @@ export default function App() {
   const [currentHalf, setCurrentHalf] = useState(() => saved?.currentHalf || 1);
   const [viewMode, setViewMode] = useState(() => saved?.viewMode || "match");
   const [seasonOpen, setSeasonOpen] = useState(false);
+  const [seasonStatsSelection, setSeasonStatsSelection] = useState(() => getDefaultSeason());
+  const [helpOpen, setHelpOpen] = useState(false);
   const [teamAdminOpen, setTeamAdminOpen] = useState(false);
   const [systemAdminOpen, setSystemAdminOpen] = useState(false);
   const [privacyNoticeOpen, setPrivacyNoticeOpen] = useState(false);
@@ -248,12 +251,23 @@ export default function App() {
       ? { ...selectedTeamRecord, name: seasonName }
       : selectedTeamRecord;
   }, [onlineTeamSeasons.activeTeamSeason, selectedTeamRecord]);
+  useEffect(() => {
+    const displayName = onlineTeamSeasons.activeTeamSeason?.display_name?.trim();
+    if (!displayName || !selectedTeamRecord || selectedTeamRecord.name === displayName) return;
+    onlineTeams.setTeams((current) => current.map((team) =>
+      team.id === selectedTeamRecord.id
+        ? { ...team, legacyName: team.legacyName || team.name, name: displayName }
+        : team
+    ));
+  }, [onlineTeamSeasons.activeTeamSeason, onlineTeams, selectedTeamRecord]);
   const seasonCenterTeam = useMemo(() => {
     if (!selectedTeamRecord) return null;
-    const season = onlineTeamSeasons.seasons.find((item) => item.season_name === selectedSeason);
+    if (seasonStatsSelection === "all") return selectedTeam;
+    const season = onlineTeamSeasons.seasons.find((item) => item.season_name === seasonStatsSelection);
     const seasonName = season?.display_name?.trim();
-    return seasonName ? { ...selectedTeamRecord, name: seasonName } : selectedTeamRecord;
-  }, [onlineTeamSeasons.seasons, selectedSeason, selectedTeamRecord]);
+    const fallbackName = selectedTeamRecord.legacyName || selectedTeamRecord.name;
+    return { ...selectedTeamRecord, name: seasonName || fallbackName };
+  }, [onlineTeamSeasons.seasons, seasonStatsSelection, selectedTeam, selectedTeamRecord]);
 
   const activeMatchTeamUnavailable = isActiveMatchTeamUnavailable({
     step,
@@ -414,6 +428,19 @@ export default function App() {
     [onlineMatches.matches, onlineMatches.online, pendingOnlineMatches, seasonMatches, selectedTeamId]
   );
   const seasonOptions = useMemo(() => buildSeasonOptions(), []);
+  const statsSeasonOptions = useMemo(
+    () => Array.from(new Set([
+      ...seasonOptions,
+      ...matchesForPlayerImport.map(getMatchSeason).filter(Boolean)
+    ])).sort((a, b) => getSeasonStartYear(a) - getSeasonStartYear(b)),
+    [matchesForPlayerImport, seasonOptions]
+  );
+  const statsMatchesForView = useMemo(
+    () => seasonStatsSelection === "all"
+      ? matchesForPlayerImport
+      : matchesForPlayerImport.filter((match) => getMatchSeason(match) === seasonStatsSelection),
+    [matchesForPlayerImport, seasonStatsSelection]
+  );
 
   useEffect(() => {
     if (!seasonOptions.includes(selectedSeason)) {
@@ -422,12 +449,12 @@ export default function App() {
   }, [seasonOptions, selectedSeason]);
 
   const seasonSummary = useMemo(
-    () => buildSeasonSummary(seasonMatchesForView, selectedTeam ? [selectedTeam] : teamsData),
-    [seasonMatchesForView, selectedTeam]
+    () => buildSeasonSummary(statsMatchesForView, selectedTeam ? [selectedTeam] : teamsData),
+    [statsMatchesForView, selectedTeam]
   );
   const seasonKpis = useMemo(
-    () => buildSeasonKpis(seasonMatchesForView, seasonSummary.fieldPlayers),
-    [seasonMatchesForView, seasonSummary.fieldPlayers]
+    () => buildSeasonKpis(statsMatchesForView, seasonSummary.fieldPlayers),
+    [statsMatchesForView, seasonSummary.fieldPlayers]
   );
 
   const cupLabel = useMemo(() => {
@@ -1168,8 +1195,8 @@ export default function App() {
       exportedAt: new Date().toISOString(),
       teamId: selectedTeamId || null,
       teamName: seasonCenterTeam?.name || null,
-      season: selectedSeason,
-      matches: seasonMatchesForView
+      season: seasonStatsSelection === "all" ? "Alla säsonger" : seasonStatsSelection,
+      matches: statsMatchesForView
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -1181,13 +1208,14 @@ export default function App() {
         .replace(/[^\p{L}\p{N}\-_ ]/gu, "")
         .trim() || "season";
     link.href = url;
-    link.download = `matchapp_season_${teamPart}_${selectedSeason.replace("/", "-")}_${new Date().toISOString().slice(0, 10)}.json`;
+    const seasonPart = seasonStatsSelection === "all" ? "alla-sasonger" : seasonStatsSelection.replace("/", "-");
+    link.download = `matchapp_season_${teamPart}_${seasonPart}_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     showToast("Säsong (JSON) nedladdad");
-  }, [seasonCenterTeam, seasonMatchesForView, selectedSeason, selectedTeamId, showToast]);
+  }, [seasonCenterTeam, seasonStatsSelection, selectedTeamId, showToast, statsMatchesForView]);
 
   const downloadExcel = useCallback(async (savedMatch = null) => {
     if (savedMatch) {
@@ -1259,23 +1287,27 @@ export default function App() {
     [canDeleteFromSelectedTeam, onlineMatches, pendingOnlineMatches, showToast]
   );
 
-  const handleClearSeason = useCallback(async () => {
+  const handleClearSeason = useCallback(async (targetSeason, targetMatches) => {
+    if (!targetSeason || targetSeason === "all") {
+      showToast("Välj en enskild säsong att rensa");
+      return;
+    }
     if (!canDeleteFromSelectedTeam) {
       showToast("Endast ägare kan rensa säsongen");
       return;
     }
 
-    if (seasonMatchesForView.length === 0) {
+    if (targetMatches.length === 0) {
       showToast("Säsongen är redan tom");
       return;
     }
 
     if (onlineMatches.online) {
       setPendingOnlineMatches((prev) =>
-        prev.filter((match) => !(match.teamId === selectedTeamId && getMatchSeason(match) === selectedSeason))
+        prev.filter((match) => !(match.teamId === selectedTeamId && getMatchSeason(match) === targetSeason))
       );
 
-      for (const match of seasonMatchesForView) {
+      for (const match of targetMatches) {
         if (match.pendingSync) continue;
         const { error } = await onlineMatches.deleteMatch(match.id);
         if (error) {
@@ -1291,7 +1323,7 @@ export default function App() {
 
     setSeasonMatches((prev) =>
       prev.filter(
-        (match) => !((selectedTeamId ? match.teamId === selectedTeamId : true) && getMatchSeason(match) === selectedSeason)
+        (match) => !((selectedTeamId ? match.teamId === selectedTeamId : true) && getMatchSeason(match) === targetSeason)
       )
     );
 
@@ -1300,8 +1332,6 @@ export default function App() {
   }, [
     canDeleteFromSelectedTeam,
     onlineMatches,
-    seasonMatchesForView,
-    selectedSeason,
     selectedTeamId,
     showToast
   ]);
@@ -1832,10 +1862,13 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
               <button
                 type="button"
-                onClick={() => setSeasonOpen(true)}
+                onClick={() => {
+                  setSeasonStatsSelection(getDefaultSeason());
+                  setSeasonOpen(true);
+                }}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Säsong
+                Matcher & statistik
               </button>
               {selectedTeam?.onlineId && (
                 <button
@@ -1855,6 +1888,13 @@ export default function App() {
                   {renderSystemAdminLabel()}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Hjälp
+              </button>
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -1922,20 +1962,20 @@ export default function App() {
         teams={availableTeams}
         selectedTeamId={selectedTeamId}
         onSelectTeam={handleSelectTeam}
-        selectedSeason={selectedSeason}
-        seasonOptions={seasonOptions}
-        onSeasonChange={setSelectedSeason}
+        selectedSeason={seasonStatsSelection}
+        seasonOptions={["all", ...statsSeasonOptions]}
+        onSeasonChange={setSeasonStatsSelection}
         seasonKpis={seasonKpis}
         onExportBackup={exportSeasonJson}
         onImportBackup={handleImportSeasonBackup}
         onClose={() => setSeasonOpen(false)}
         seasonSummary={seasonSummary}
-        matches={seasonMatchesForView}
+        matches={statsMatchesForView}
         onDeleteMatch={handleDeleteSeasonMatch}
-        onClearSeason={handleClearSeason}
+        onClearSeason={() => handleClearSeason(seasonStatsSelection, statsMatchesForView)}
         onExportMatchExcel={downloadExcel}
         onConfirm={requestConfirm}
-        canManageSeason={canDeleteFromSelectedTeam}
+        canManageSeason={canDeleteFromSelectedTeam && seasonStatsSelection !== "all"}
       />
 
       <TeamAdminPanel
@@ -2020,6 +2060,8 @@ export default function App() {
         requireAcknowledge={privacyNoticeRequired}
         onClose={closePrivacyNotice}
       />
+
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {updatePrompt}
     </div>

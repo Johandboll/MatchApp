@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import teamsData from "../data/teams.json";
 import { supabase } from "../lib/supabaseClient";
+import { getCurrentSeasonDefinition } from "../lib/seasonHelpers";
 
 const TEAMS_CACHE_KEY = "matchapp-supabase-teams-cache";
 
@@ -19,6 +20,12 @@ const writeTeamsCache = (userId, teams) => {
     cache[userId] = teams;
     localStorage.setItem(TEAMS_CACHE_KEY, JSON.stringify(cache));
   } catch {}
+};
+
+export const withCurrentSeasonName = (team, seasons, currentSeasonName) => {
+  const currentSeason = (seasons || []).find((season) => season.season_name === currentSeasonName);
+  const displayName = currentSeason?.display_name?.trim();
+  return displayName ? { ...team, name: displayName } : team;
 };
 
 const mergeWithLocalRoster = (team, membershipRole) => {
@@ -40,6 +47,7 @@ const mergeWithLocalRoster = (team, membershipRole) => {
     id: team.slug || team.id,
     onlineId: team.id,
     name: team.name,
+    legacyName: team.name,
     membershipRole,
     deletionScheduledAt: team.deletion_scheduled_at || null,
     players: onlinePlayers.length > 0 ? onlinePlayers : localTeam?.players || []
@@ -102,9 +110,18 @@ export function useSupabaseTeams(user) {
         return;
       }
 
-      const nextTeams = (data || [])
+      const baseTeams = (data || [])
         .filter((row) => row.teams)
         .map((row) => mergeWithLocalRoster(row.teams, row.role));
+
+      const currentSeasonName = getCurrentSeasonDefinition().name;
+      const nextTeams = await Promise.all(baseTeams.map(async (team) => {
+        const { data: seasons, error: seasonError } = await supabase.rpc("list_team_seasons", {
+          target_team_id: team.onlineId
+        });
+        if (seasonError) return team;
+        return withCurrentSeasonName(team, seasons, currentSeasonName);
+      }));
 
       setTeams(nextTeams);
       writeTeamsCache(userId, nextTeams);

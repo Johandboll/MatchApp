@@ -64,6 +64,14 @@ test("opens player editing directly on the selected row", async () => {
   expect(screen.getByText("Bea")).toBeVisible();
 });
 
+test("explains how to move a team when a new season is available", async () => {
+  renderPanel();
+
+  expect(await screen.findByText("Ny säsong är tillgänglig")).toBeVisible();
+  expect(screen.getByText(/Historiken ligger kvar/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Starta ny säsong" })).toBeVisible();
+});
+
 test("cancels inline player editing without saving", async () => {
   renderPanel();
   const anna = await screen.findByText("Anna");

@@ -590,15 +590,6 @@ export default function TeamAdminPanel({
             <h2 className="break-words text-xl font-extrabold text-slate-900">{team?.name || "Lag"}</h2>
           </div>
           <div className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:items-center">
-            {canManageCurrentTeam && team?.onlineId && !hasCurrentSeason && (
-              <button
-                type="button"
-                onClick={() => setSeasonPanelOpen(true)}
-                className="min-w-0 flex-[1.4] whitespace-nowrap rounded-xl bg-sky-600 px-2 py-1.5 text-sm font-semibold text-white hover:bg-sky-700 sm:flex-none sm:px-3"
-              >
-                Ny säsong
-              </button>
-            )}
             <button
               type="button"
               onClick={onOpenPrivacyNotice}
@@ -709,6 +700,24 @@ export default function TeamAdminPanel({
                   )}
                 </div>
               )}
+            </section>
+          )}
+
+          {canManageCurrentTeam && team?.onlineId && !hasCurrentSeason && (
+            <section className="mb-3 flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-sky-950">Ny säsong är tillgänglig</h3>
+                <p className="mt-0.5 text-xs leading-relaxed text-sky-800">
+                  För över laget till {currentSeasonName}. Du väljer vilka spelare som fortsätter och kan ändra lagnamn, nummer och roller. Historiken ligger kvar.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSeasonPanelOpen(true)}
+                className="shrink-0 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700"
+              >
+                Starta ny säsong
+              </button>
             </section>
           )}
 

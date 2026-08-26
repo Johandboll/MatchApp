@@ -452,7 +452,7 @@ export default function SeasonCenter({
         <div className="mx-auto max-w-7xl px-4 py-3">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-slate-500">Säsongscenter</div>
+              <div className="text-xs font-semibold text-slate-500">Matcher och statistik</div>
               <h1 className="truncate text-xl font-extrabold text-slate-900">
                 {selectedTeam?.name || "Valt lag"}
               </h1>
@@ -547,7 +547,10 @@ export default function SeasonCenter({
                 <SeasonDropdown
                   label="Välj säsong"
                   value={selectedSeason || ""}
-                  options={seasonOptions.map((season) => ({ value: season, label: season }))}
+                  options={seasonOptions.map((season) => ({
+                    value: season,
+                    label: season === "all" ? "Alla säsonger" : season
+                  }))}
                   onChange={onSeasonChange}
                 />
               )}

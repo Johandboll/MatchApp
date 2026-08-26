@@ -9,7 +9,11 @@ const WHATS_NEW_BY_VERSION = {
     "**Trygg radering:** Ett lag raderas först efter 24 timmar och raderingen kan ångras.",
     "**Smidigare spelarhantering:** Spelare kan ändras direkt på sin rad i spelarlistan.",
     "**Förbättrat matchläge:** Tydligare och modernare händelseknappar för utespelare och målvakter.",
-    "**Säkrare matcher:** Pågående matcher bevaras bättre när du byter app eller telefonen låses."
+    "**Säkrare matcher:** Pågående matcher bevaras bättre när du byter app eller telefonen låses.",
+    "**Ny säsong:** För över laget med samma historik och välj vilka spelare som fortsätter, med nya nummer och roller vid behov.",
+    "**Matcher och statistik:** Visa aktuell säsong eller välj Alla säsonger för lagets samlade historik.",
+    "**Äldre matcher:** Matchdatumet väljer rätt säsong automatiskt när du efterregistrerar en match.",
+    "**Hjälp i appen:** Den nya hjälpsidan förklarar matchregistrering, säsongsbyte och statistik."
   ],
   "2.0.3": [
     "**Telefonvy:** Matchvyn har fått ett särskilt telefonläge med tydligare spelarval och stora händelseknappar.",
