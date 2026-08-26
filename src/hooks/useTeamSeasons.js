@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export function useTeamSeasons(user, team, selectedSeason) {
@@ -7,14 +7,20 @@ export function useTeamSeasons(user, team, selectedSeason) {
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loadedTeamId, setLoadedTeamId] = useState(null);
+  const requestIdRef = useRef(0);
 
   const refresh = useCallback(async (seasonOverride) => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     if (!supabase || !user?.id || !team?.onlineId) {
       setSeasons([]);
       setActiveTeamSeason(null);
       setRoster([]);
       setLoading(false);
       setError("");
+      setLoadedTeamId(null);
       return;
     }
 
@@ -24,6 +30,8 @@ export function useTeamSeasons(user, team, selectedSeason) {
     const { data: seasonRows, error: seasonError } = await supabase.rpc("list_team_seasons", {
       target_team_id: team.onlineId
     });
+
+    if (requestId !== requestIdRef.current) return;
 
     if (seasonError) {
       setSeasons([]);
@@ -39,6 +47,7 @@ export function useTeamSeasons(user, team, selectedSeason) {
     const selected = nextSeasons.find((item) => item.season_name === seasonToSelect) || null;
     setSeasons(nextSeasons);
     setActiveTeamSeason(selected);
+    setLoadedTeamId(team.onlineId);
 
     if (!selected) {
       setRoster([]);
@@ -51,6 +60,8 @@ export function useTeamSeasons(user, team, selectedSeason) {
       target_team_season_id: selected.team_season_id
     });
 
+    if (requestId !== requestIdRef.current) return;
+
     if (rosterError) {
       setRoster([]);
       setError(rosterError.message);
@@ -62,7 +73,18 @@ export function useTeamSeasons(user, team, selectedSeason) {
 
   useEffect(() => {
     refresh();
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [refresh]);
 
-  return { seasons, activeTeamSeason, roster, loading, error, refresh };
+  const matchesCurrentTeam = loadedTeamId === team?.onlineId;
+  return {
+    seasons: matchesCurrentTeam ? seasons : [],
+    activeTeamSeason: matchesCurrentTeam ? activeTeamSeason : null,
+    roster: matchesCurrentTeam ? roster : [],
+    loading,
+    error,
+    refresh
+  };
 }

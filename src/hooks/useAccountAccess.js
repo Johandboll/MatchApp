@@ -19,6 +19,12 @@ const mapAccess = (data) => ({
   canCreateTeam: Boolean(data?.can_create_team)
 });
 
+const isFutureJwtError = (error) =>
+  /jwt issued at future/i.test(error?.message || "");
+
+const wait = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 export function useAccountAccess(user) {
   const userId = user?.id || null;
   const [access, setAccess] = useState(DEFAULT_ACCESS);
@@ -36,7 +42,16 @@ export function useAccountAccess(user) {
     setLoading(true);
     setError("");
 
-    const { data, error: queryError } = await supabase.rpc("get_my_account_access");
+    let result = await supabase.rpc("get_my_account_access");
+
+    // Supabase Auth och API kan under några sekunder ha olika serverklocka.
+    // Vänta då tills den nyutfärdade tokenen blivit giltig och försök igen.
+    for (let attempt = 0; attempt < 2 && isFutureJwtError(result.error); attempt += 1) {
+      await wait(1500);
+      result = await supabase.rpc("get_my_account_access");
+    }
+
+    const { data, error: queryError } = result;
 
     if (queryError) {
       setAccess(DEFAULT_ACCESS);

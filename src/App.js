@@ -1718,6 +1718,40 @@ export default function App() {
     );
   }
 
+  if (isSupabaseConfigured && auth.user && accountAccess.error) {
+    return (
+      <>
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">MatchApp</p>
+            <h1 className="mt-1 text-2xl font-extrabold text-slate-900">Problem med sessionen</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Din behörighet kunde inte kontrolleras just nu. Försök igen eller logga in på nytt.
+            </p>
+            <p className="mt-3 text-sm font-medium text-red-700">{accountAccess.error}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={accountAccess.refresh}
+                className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+              >
+                Försök igen
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Logga ut
+              </button>
+            </div>
+          </div>
+        </div>
+        {updatePrompt}
+      </>
+    );
+  }
+
   if (isSupabaseConfigured && auth.user && accountAccess.accountStatus === "pending") {
     return (
       <>
@@ -1728,9 +1762,6 @@ export default function App() {
             <p className="mt-2 text-sm text-slate-600">
               En administratör behöver godkänna kontot innan du kan använda appen.
             </p>
-            {accountAccess.error && (
-              <p className="mt-3 text-sm font-medium text-red-700">{accountAccess.error}</p>
-            )}
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button
                 type="button"
@@ -1923,11 +1954,12 @@ export default function App() {
           cupPhase={cupPhase}
           setCupPhase={setCupPhase}
           onStartMatch={startMatch}
-          canStartMatch={canStartMatch}
+          canStartMatch={canStartMatch && !onlineTeamSeasons.loading}
           appVersion={APP_VERSION}
           changelogTooltip={CHANGELOG_TOOLTIP}
           matchSeason={matchInfo.date ? getSeasonFromDate(matchInfo.date) : selectedSeason}
           isPastSeason={Boolean(matchInfo.date && getSeasonFromDate(matchInfo.date) !== getDefaultSeason())}
+          playersLoading={onlineTeamSeasons.loading}
         />
       )}
 

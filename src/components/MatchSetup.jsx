@@ -61,7 +61,8 @@ export default function MatchSetup({
   appVersion,
   changelogTooltip,
   matchSeason,
-  isPastSeason = false
+  isPastSeason = false,
+  playersLoading = false
 }) {
   const selectedDate = parseDate(matchInfo.date);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -270,7 +271,9 @@ export default function MatchSetup({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-base font-bold text-slate-900">Spelare</div>
-            <div className="text-sm text-slate-500">{selectedPlayers.length} valda</div>
+            <div className="text-sm text-slate-500">
+              {playersLoading ? "Hämtar säsongens spelare..." : `${selectedPlayers.length} valda`}
+            </div>
           </div>
         </div>
 
@@ -286,6 +289,7 @@ export default function MatchSetup({
             return (
               <button
                 key={playerId}
+                disabled={playersLoading}
                 className={`${baseClass} ${
                   selected
                     ? isGoalkeeper
@@ -294,7 +298,7 @@ export default function MatchSetup({
                     : isGoalkeeper
                       ? "border-amber-300 bg-amber-50 text-slate-900 hover:bg-amber-100"
                       : "border-sky-200 bg-sky-50 text-slate-900 hover:bg-sky-100"
-                }`}
+                } ${playersLoading ? "cursor-wait opacity-60" : ""}`}
                 onClick={() => onTogglePlayer(playerId)}
               >
                 <span className="block">#{shirtNumber}</span>
