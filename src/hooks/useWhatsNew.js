@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { getWhatsNewItems } from "../changelog";
 import { APP_VERSION } from "../config/appVersion";
+import { storageKey } from "../lib/storageKeys";
 
-const STORAGE_KEY = "matchapp_whatsnew_seen_version";
+const STORAGE_KEY = storageKey("whatsnew-seen-version");
 
 export function useWhatsNew() {
   const version = useMemo(() => APP_VERSION, []);

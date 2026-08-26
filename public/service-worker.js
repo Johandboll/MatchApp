@@ -1,11 +1,12 @@
-const CACHE_NAME = "matchapp-shell-v3";
-
 const getBasePath = () => {
   const path = self.location.pathname.replace(/\/service-worker\.js$/, "");
   return path || "";
 };
 
 const basePath = getBasePath();
+const cacheScope = basePath === "/test" ? "test" : basePath === "/matchapp" ? "prod" : "dev";
+const CACHE_PREFIX = `matchapp-${cacheScope}-shell-`;
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
 const baseUrl = `${self.location.origin}${basePath}`;
 
 const shellUrls = [
@@ -62,7 +63,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
       )
       .then(() => self.clients.claim())
   );

@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import teamsData from "../data/teams.json";
 import { supabase } from "../lib/supabaseClient";
 import { getCurrentSeasonDefinition } from "../lib/seasonHelpers";
+import { storageKey } from "../lib/storageKeys";
 
-const TEAMS_CACHE_KEY = "matchapp-supabase-teams-cache";
+const TEAMS_CACHE_KEY = storageKey("supabase-teams-cache");
 
 const readTeamsCache = (userId) => {
   try {

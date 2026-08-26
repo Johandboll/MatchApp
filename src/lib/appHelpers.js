@@ -1,7 +1,9 @@
-export const APP_STATE_KEY = "handbollsstat-state";
-export const SEASON_STATE_KEY = "handbollsstat-season";
-export const SELECTED_TEAM_KEY = "handbollsstat-selectedTeamId";
-export const SELECTED_SEASON_KEY = "handbollsstat-selectedSeason";
+import { storageKey } from "./storageKeys";
+
+export const APP_STATE_KEY = storageKey("state");
+export const SEASON_STATE_KEY = storageKey("season");
+export const SELECTED_TEAM_KEY = storageKey("selected-team-id");
+export const SELECTED_SEASON_KEY = storageKey("selected-season");
 
 export const TEAM_IDS = ["p13-14", "p16-19"];
 

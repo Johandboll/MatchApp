@@ -44,12 +44,13 @@ import {
   normalizeSeason,
   sortPlayersForUI
 } from "./lib/appHelpers";
+import { storageKey } from "./lib/storageKeys";
 
 const CHANGELOG_TOOLTIP = getChangelogTooltip(APP_VERSION);
 
 const EXTERNAL_TEAM_ID = "__external_team_file__";
-const PENDING_ONLINE_MATCHES_KEY = "matchapp-pending-online-matches";
-const PRIVACY_NOTICE_KEY = "matchapp-privacy-notice";
+const PENDING_ONLINE_MATCHES_KEY = storageKey("pending-online-matches");
+const PRIVACY_NOTICE_KEY = storageKey("privacy-notice");
 const PRIVACY_NOTICE_COLUMNS_MISSING = "42703";
 const slugifyPlayerPart = (value) =>
   String(value || "")
