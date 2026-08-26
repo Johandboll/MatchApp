@@ -116,6 +116,32 @@ test("keeps player administration in sync with the active season", async () => {
   expect(onSeasonRefresh).toHaveBeenCalledWith("2026/2027");
 });
 
+test("lets only the owner rename the active season", async () => {
+  const onSeasonRefresh = jest.fn().mockResolvedValue();
+  const onToast = jest.fn();
+  renderPanel({
+    selectedSeason: "2026/2027",
+    teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027", display_name: "Testlaget" }],
+    activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027", display_name: "Testlaget" },
+    onSeasonRefresh,
+    onToast
+  });
+
+  fireEvent.click(await screen.findByRole("button", { name: "Ändra lagnamn" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Lagnamn för aktuell säsong" }), {
+    target: { value: "Testlaget P16" }
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Spara" }));
+
+  await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith("update_team_season_display_name", {
+    target_team_id: "team-1",
+    target_team_season_id: "season-2",
+    new_display_name: "Testlaget P16"
+  }));
+  expect(onSeasonRefresh).toHaveBeenCalledWith("2026/2027");
+  expect(onToast).toHaveBeenCalledWith("Lagnamnet är ändrat för aktuell säsong");
+});
+
 test("shows undo and deletion time for a scheduled team", async () => {
   renderPanel({
     team: { ...team, deletionScheduledAt: "2026-08-12T12:00:00.000Z" }

@@ -85,6 +85,10 @@ export default function TeamAdminPanel({
   const [transferTarget, setTransferTarget] = useState(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState("admin");
   const [seasonPanelOpen, setSeasonPanelOpen] = useState(false);
+  const [seasonNameEditing, setSeasonNameEditing] = useState(false);
+  const [seasonDisplayName, setSeasonDisplayName] = useState("");
+  const [seasonNameError, setSeasonNameError] = useState("");
+  const [seasonNameBusy, setSeasonNameBusy] = useState(false);
   const currentSeasonName = useMemo(() => getCurrentSeasonDefinition().name, []);
   const hasCurrentSeason = teamSeasons.some((season) => season.season_name === currentSeasonName);
   const canManageCurrentTeam = !team?.onlineId || ["owner", "admin"].includes(currentUserRole);
@@ -96,6 +100,36 @@ export default function TeamAdminPanel({
   const canLoad = open && supabase && team?.onlineId && canManageCurrentTeam;
 
   const deletionScheduledAt = team?.deletionScheduledAt || null;
+
+  useEffect(() => {
+    setSeasonDisplayName(activeTeamSeason?.display_name || team?.name || "");
+    setSeasonNameEditing(false);
+    setSeasonNameError("");
+  }, [activeTeamSeason?.display_name, activeTeamSeason?.team_season_id, team?.id, team?.name]);
+
+  const saveSeasonDisplayName = async (event) => {
+    event.preventDefault();
+    const cleanName = seasonDisplayName.trim();
+    if (!supabase || !team?.onlineId || !activeTeamSeason?.team_season_id || !cleanName) return;
+
+    setSeasonNameBusy(true);
+    setSeasonNameError("");
+    const { error: renameError } = await supabase.rpc("update_team_season_display_name", {
+      target_team_id: team.onlineId,
+      target_team_season_id: activeTeamSeason.team_season_id,
+      new_display_name: cleanName
+    });
+    setSeasonNameBusy(false);
+
+    if (renameError) {
+      setSeasonNameError(renameError.message);
+      return;
+    }
+
+    await onSeasonRefresh?.(selectedSeason);
+    setSeasonNameEditing(false);
+    onToast?.("Lagnamnet är ändrat för aktuell säsong");
+  };
 
   const scheduleTeamDeletion = () => {
     if (!supabase || !team?.onlineId || !isCurrentUserOwner || !onTeamDeletionChanged) return;
@@ -718,6 +752,58 @@ export default function TeamAdminPanel({
               >
                 Starta ny säsong
               </button>
+            </section>
+          )}
+
+          {isCurrentUserOwner && team?.onlineId && hasCurrentSeason && activeTeamSeason && (
+            <section className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-extrabold text-slate-900">Lagnamn för {activeTeamSeason.season_name}</h3>
+                  <p className="truncate text-xs text-slate-500">{activeTeamSeason.display_name || team.name}</p>
+                </div>
+                {!seasonNameEditing && (
+                  <button
+                    type="button"
+                    onClick={() => setSeasonNameEditing(true)}
+                    className="shrink-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Ändra lagnamn
+                  </button>
+                )}
+              </div>
+
+              {seasonNameEditing && (
+                <form onSubmit={saveSeasonDisplayName} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                  <input
+                    type="text"
+                    value={seasonDisplayName}
+                    onChange={(event) => setSeasonDisplayName(event.target.value)}
+                    aria-label="Lagnamn för aktuell säsong"
+                    className="min-w-0 rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSeasonDisplayName(activeTeamSeason.display_name || team.name || "");
+                      setSeasonNameEditing(false);
+                      setSeasonNameError("");
+                    }}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+                  >
+                    Avbryt
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={seasonNameBusy || !seasonDisplayName.trim()}
+                    className="rounded-xl bg-sky-600 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {seasonNameBusy ? "Sparar..." : "Spara"}
+                  </button>
+                </form>
+              )}
+              {seasonNameError && <p className="mt-2 text-sm text-red-700">{seasonNameError}</p>}
             </section>
           )}
 
