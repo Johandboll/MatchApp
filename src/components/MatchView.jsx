@@ -166,7 +166,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 </button>
                 <button
                   type="button"
-                  className={`min-h-[50px] rounded-xl border px-3 text-sm font-bold shadow-sm ${mobileIsGk ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-rose-300 bg-rose-100 text-rose-900"}`}
+                  className={`min-h-[50px] rounded-xl border px-3 text-sm font-bold shadow-sm ${mobileIsGk ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-rose-400 bg-rose-200 text-rose-950"}`}
                   onClick={() => mobileIncrement("sevenMiss")}
                 >
                   {mobileIsGk ? "7m räddning" : "7m miss"}
@@ -187,7 +187,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                 </button>
                 <button
                   type="button"
-                  className="min-h-[50px] rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-800 shadow-sm"
+                  className="min-h-[50px] rounded-xl border border-red-500 bg-red-200 px-3 text-sm font-bold text-red-950 shadow-sm"
                   onClick={() => mobileIncrement("redCard")}
                 >
                   Rött kort
@@ -382,7 +382,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                     </button>
                     <button
                       className={`rounded-xl border px-3 py-3 text-sm font-bold shadow-sm ${
-                        isGk ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-rose-300 bg-rose-100 text-rose-900"
+                        isGk ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-rose-400 bg-rose-200 text-rose-950"
                       }`}
                       onClick={() => {
                         increment(playerRef, "sevenMiss");
@@ -407,7 +407,7 @@ export default function MatchView({ allPlayers, selectedPlayers, stats, incremen
                       Gult
                     </button>
                     <button
-                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm font-bold text-red-800 hover:bg-red-100"
+                      className="rounded-xl border border-red-500 bg-red-200 px-3 py-3 text-sm font-bold text-red-950 hover:bg-red-300"
                       onClick={() => { increment(playerRef, "redCard"); setMenuFor(null); }}
                     >
                       Rött

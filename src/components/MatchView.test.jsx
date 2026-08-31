@@ -57,3 +57,18 @@ test("goalkeeper has assist in the main actions and goalkeeper goal inside More"
 
   expect(increment).toHaveBeenCalledWith("gk-1", "gkScored");
 });
+
+test("field-player save and 7m miss share a softer color than red card", () => {
+  render(<MatchView allPlayers={players} selectedPlayers={["field-1"]} stats={{}} increment={jest.fn()} />);
+
+  openPlayer("Utespelaren");
+  expect(screen.getByRole("button", { name: /Räddning/ })).toHaveClass("bg-rose-200");
+
+  fireEvent.click(screen.getAllByRole("button", { name: /Mer/ })[0]);
+  screen.getAllByRole("button", { name: "7m miss" }).forEach((button) => {
+    expect(button).toHaveClass("bg-rose-200");
+  });
+  screen.getAllByRole("button", { name: /Rött/ }).forEach((button) => {
+    expect(button).toHaveClass("border-red-500", "bg-red-200");
+  });
+});
