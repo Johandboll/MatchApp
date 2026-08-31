@@ -59,6 +59,7 @@ export function useSupabaseTeams(user) {
   const userId = user?.id || null;
   const [teams, setTeams] = useState(() => (user?.id ? readTeamsCache(user.id) : []));
   const [loading, setLoading] = useState(Boolean(supabase && user));
+  const [resolvedUserId, setResolvedUserId] = useState(null);
   const [error, setError] = useState("");
   const [usingCache, setUsingCache] = useState(false);
 
@@ -66,6 +67,7 @@ export function useSupabaseTeams(user) {
     if (!supabase || !userId) {
       setTeams([]);
       setLoading(false);
+      setResolvedUserId(null);
       setError("");
       setUsingCache(false);
       return;
@@ -82,6 +84,7 @@ export function useSupabaseTeams(user) {
 
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         setLoading(false);
+        setResolvedUserId(userId);
         setError(cachedTeams.length > 0 ? "" : "Offline och inga lag finns cachelagrade ännu.");
         return;
       }
@@ -108,6 +111,7 @@ export function useSupabaseTeams(user) {
           setUsingCache(false);
         }
         setLoading(false);
+        setResolvedUserId(userId);
         return;
       }
 
@@ -128,6 +132,7 @@ export function useSupabaseTeams(user) {
       writeTeamsCache(userId, nextTeams);
       setUsingCache(false);
       setLoading(false);
+      setResolvedUserId(userId);
     };
 
     loadTeams();
@@ -145,5 +150,12 @@ export function useSupabaseTeams(user) {
     });
   };
 
-  return { teams, loading, error, usingCache, setTeams: setTeamsAndCache };
+  return {
+    teams,
+    loading,
+    ready: !supabase || !userId || resolvedUserId === userId,
+    error,
+    usingCache,
+    setTeams: setTeamsAndCache
+  };
 }

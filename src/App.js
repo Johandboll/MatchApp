@@ -42,6 +42,7 @@ import {
   loadSaved,
   loadSeasonMatches,
   normalizeSeason,
+  shouldWaitForOnlineTeams,
   sortPlayersForUI
 } from "./lib/appHelpers";
 import { storageKey } from "./lib/storageKeys";
@@ -279,6 +280,12 @@ export default function App() {
 
   useEffect(() => {
     if (selectedTeamId === EXTERNAL_TEAM_ID || teamFileFromQuery) return;
+    if (shouldWaitForOnlineTeams({
+      supabaseConfigured: isSupabaseConfigured,
+      authLoading: auth.loading,
+      user: auth.user,
+      teamsReady: onlineTeams.ready
+    })) return;
     if (selectedTeamId && selectedTeam) return;
 
     // Never move an ongoing match to another team while memberships are loading.
@@ -296,7 +303,7 @@ export default function App() {
     if (isSupabaseConfigured && auth.user && !onlineTeams.loading && selectedTeamId) {
       setSelectedTeamId(null);
     }
-  }, [activeMatchTeamId, activeMatchTeamUnavailable, auth.user, availableTeams, onlineTeams.loading, selectedTeam, selectedTeamId, step, teamFileFromQuery]);
+  }, [activeMatchTeamId, activeMatchTeamUnavailable, auth.loading, auth.user, availableTeams, onlineTeams.loading, onlineTeams.ready, selectedTeam, selectedTeamId, step, teamFileFromQuery]);
 
   const canDeleteFromSelectedTeam =
     !selectedTeam?.onlineId || selectedTeam?.membershipRole === "owner";

@@ -3,7 +3,8 @@ import {
   buildSeasonSummary,
   getDefaultSeason,
   getSeasonFromDate,
-  isActiveMatchTeamUnavailable
+  isActiveMatchTeamUnavailable,
+  shouldWaitForOnlineTeams
 } from "./appHelpers";
 
 const makeMatch = (player, teamId = "team-old") => ({
@@ -96,6 +97,37 @@ describe("ongoing match recovery", () => {
         activeMatchTeamId: "current-team",
         availableTeams: [{ id: "current-team" }],
         teamsLoading: false
+      })
+    ).toBe(false);
+  });
+});
+
+describe("saved team recovery", () => {
+  test("does not choose a fallback team before auth and memberships are ready", () => {
+    expect(
+      shouldWaitForOnlineTeams({
+        supabaseConfigured: true,
+        authLoading: true,
+        user: null,
+        teamsReady: false
+      })
+    ).toBe(true);
+
+    expect(
+      shouldWaitForOnlineTeams({
+        supabaseConfigured: true,
+        authLoading: false,
+        user: { id: "user-1" },
+        teamsReady: false
+      })
+    ).toBe(true);
+
+    expect(
+      shouldWaitForOnlineTeams({
+        supabaseConfigured: true,
+        authLoading: false,
+        user: { id: "user-1" },
+        teamsReady: true
       })
     ).toBe(false);
   });

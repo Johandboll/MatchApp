@@ -36,6 +36,15 @@ export const isActiveMatchTeamUnavailable = ({
     (team) => team?.id === activeMatchTeamId
   );
 
+export const shouldWaitForOnlineTeams = ({
+  supabaseConfigured,
+  authLoading,
+  user,
+  teamsReady
+}) =>
+  Boolean(supabaseConfigured) &&
+  (Boolean(authLoading) || !user || !teamsReady);
+
 export const n = (value) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
