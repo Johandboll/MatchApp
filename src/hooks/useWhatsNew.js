@@ -8,8 +8,6 @@ const STORAGE_KEY = storageKey("whatsnew-seen-version");
 export function useWhatsNew() {
   const version = useMemo(() => APP_VERSION, []);
   const items = useMemo(() => getWhatsNewItems(version), [version]);
-  const previousVersion = "2.0.2";
-  const previousItems = useMemo(() => getWhatsNewItems("2.0.2"), []);
 
   const [open, setOpen] = useState(false);
 
@@ -34,5 +32,5 @@ export function useWhatsNew() {
     }
   }
 
-  return { open, version, items, previousVersion, previousItems, close };
+  return { open, version, items, close };
 }
