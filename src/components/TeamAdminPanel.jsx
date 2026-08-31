@@ -10,6 +10,8 @@ const roleLabel = {
   member: "Användare"
 };
 
+const EMPTY_SEASON_ROSTER = [];
+
 const normalizeNameKey = (value) =>
   String(value || "")
     .toLowerCase()
@@ -54,6 +56,7 @@ export default function TeamAdminPanel({
   onSeasonChange,
   teamSeasons = [],
   activeTeamSeason,
+  seasonRoster = EMPTY_SEASON_ROSTER,
   seasonLoading = false,
   seasonError = "",
   onSeasonRefresh
@@ -245,6 +248,19 @@ export default function TeamAdminPanel({
   const loadPlayers = useCallback(async () => {
     if (!canLoad) return;
 
+    if (activeTeamSeason?.team_season_id) {
+      setPlayers(seasonRoster || []);
+      setPlayersLoading(seasonLoading);
+      setPlayerError(
+        seasonError
+          ? (/failed to fetch/i.test(seasonError)
+              ? "Kunde inte uppdatera säsongstruppen. Kontrollera anslutningen och försök igen."
+              : seasonError)
+          : ""
+      );
+      return;
+    }
+
     setPlayersLoading(true);
     setPlayerError("");
 
@@ -253,15 +269,18 @@ export default function TeamAdminPanel({
     });
 
     if (queryError) {
-      setPlayerError(queryError.message);
-      setPlayers([]);
+      setPlayerError(
+        /failed to fetch/i.test(queryError.message || "")
+          ? "Kunde inte uppdatera truppen. Kontrollera anslutningen och försök igen."
+          : queryError.message
+      );
       setPlayersLoading(false);
       return;
     }
 
     setPlayers(data || []);
     setPlayersLoading(false);
-  }, [canLoad, team]);
+  }, [activeTeamSeason?.team_season_id, canLoad, seasonError, seasonLoading, seasonRoster, team]);
 
   useEffect(() => {
     if (!open) return;
@@ -1180,8 +1199,17 @@ export default function TeamAdminPanel({
                 </div>
 
                 {playerError && (
-                  <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {playerError}
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <span>{playerError}</span>
+                    <button
+                      type="button"
+                      onClick={() => activeTeamSeason?.team_season_id
+                        ? onSeasonRefresh?.(selectedSeason)
+                        : loadPlayers()}
+                      className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-800 hover:bg-red-100"
+                    >
+                      Försök igen
+                    </button>
                   </div>
                 )}
 

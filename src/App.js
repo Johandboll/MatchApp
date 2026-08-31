@@ -2039,6 +2039,7 @@ export default function App() {
         onSeasonChange={setSelectedSeason}
         teamSeasons={onlineTeamSeasons.seasons}
         activeTeamSeason={onlineTeamSeasons.activeTeamSeason}
+        seasonRoster={onlineTeamSeasons.roster}
         seasonLoading={onlineTeamSeasons.loading}
         seasonError={onlineTeamSeasons.error}
         onSeasonRefresh={onlineTeamSeasons.refresh}

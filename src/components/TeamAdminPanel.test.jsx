@@ -94,6 +94,7 @@ test("keeps player administration in sync with the active season", async () => {
     selectedSeason: "2026/2027",
     teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027" }],
     activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027" },
+    seasonRoster: players,
     onSeasonRefresh
   });
   const anna = await screen.findByText("Anna");
@@ -123,6 +124,7 @@ test("lets only the owner rename the active season", async () => {
     selectedSeason: "2026/2027",
     teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027", display_name: "Testlaget" }],
     activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027", display_name: "Testlaget" },
+    seasonRoster: players,
     onSeasonRefresh,
     onToast
   });
@@ -140,6 +142,23 @@ test("lets only the owner rename the active season", async () => {
   }));
   expect(onSeasonRefresh).toHaveBeenCalledWith("2026/2027");
   expect(onToast).toHaveBeenCalledWith("Lagnamnet är ändrat för aktuell säsong");
+});
+
+test("shows the active season roster instead of the legacy player list", async () => {
+  renderPanel({
+    selectedSeason: "2026/2027",
+    teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027" }],
+    activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027" },
+    seasonRoster: [
+      { id: "season-player-1", shirt_number: 14, name: "Aktiv spelare", role: "field", active: true },
+      { id: "season-player-2", shirt_number: 33, name: "Frank", role: "field", active: false }
+    ]
+  });
+
+  expect(await screen.findByText("Aktiv spelare")).toBeVisible();
+  expect(screen.getByText("Frank")).toBeVisible();
+  expect(screen.getByText("1 aktiva")).toBeVisible();
+  expect(supabase.rpc).not.toHaveBeenCalledWith("list_team_players", expect.anything());
 });
 
 test("shows undo and deletion time for a scheduled team", async () => {

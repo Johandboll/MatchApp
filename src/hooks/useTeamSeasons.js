@@ -8,6 +8,7 @@ export function useTeamSeasons(user, team, selectedSeason) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [loadedTeamId, setLoadedTeamId] = useState(null);
+  const loadedTeamIdRef = useRef(null);
   const requestIdRef = useRef(0);
 
   const refresh = useCallback(async (seasonOverride) => {
@@ -21,6 +22,7 @@ export function useTeamSeasons(user, team, selectedSeason) {
       setLoading(false);
       setError("");
       setLoadedTeamId(null);
+      loadedTeamIdRef.current = null;
       return;
     }
 
@@ -34,9 +36,6 @@ export function useTeamSeasons(user, team, selectedSeason) {
     if (requestId !== requestIdRef.current) return;
 
     if (seasonError) {
-      setSeasons([]);
-      setActiveTeamSeason(null);
-      setRoster([]);
       setError(seasonError.message);
       setLoading(false);
       return;
@@ -45,9 +44,11 @@ export function useTeamSeasons(user, team, selectedSeason) {
     const nextSeasons = seasonRows || [];
     const seasonToSelect = seasonOverride || selectedSeason;
     const selected = nextSeasons.find((item) => item.season_name === seasonToSelect) || null;
+    const isSameTeam = loadedTeamIdRef.current === team.onlineId;
     setSeasons(nextSeasons);
     setActiveTeamSeason(selected);
     setLoadedTeamId(team.onlineId);
+    loadedTeamIdRef.current = team.onlineId;
 
     if (!selected) {
       setRoster([]);
@@ -63,7 +64,7 @@ export function useTeamSeasons(user, team, selectedSeason) {
     if (requestId !== requestIdRef.current) return;
 
     if (rosterError) {
-      setRoster([]);
+      if (!isSameTeam) setRoster([]);
       setError(rosterError.message);
     } else {
       setRoster(rosterRows || []);
