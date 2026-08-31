@@ -1,2 +1,2 @@
-export const APP_VERSION = process.env.REACT_APP_APP_VERSION || "2.0.4.10";
+export const APP_VERSION = process.env.REACT_APP_APP_VERSION || "2.0.4.11";
 export const BUILD_TIME = process.env.REACT_APP_BUILD_TIME || "dev";

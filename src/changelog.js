@@ -2,6 +2,9 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.11": [
+    "**Offlinepaketet färdigställs:** JavaScript och CSS hämtas nu från rätt MatchApp-adress så att Offline redo kan bekräftas."
+  ],
   "2.0.4.10": [
     "**Bekräftad offlineinstallation:** Appen visar Offline redo först när alla nödvändiga filer verkligen finns på telefonen.",
     "**Ingen tom offline-start:** En ofullständig cache får inte längre aktiveras."

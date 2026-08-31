@@ -54,7 +54,7 @@ const getBuildAssetUrls = async () => {
   const entrypoints = manifest.entrypoints || [];
   const paths = entrypoints
     .filter(Boolean)
-    .map((path) => (path.startsWith("http") ? path : `${self.location.origin}${path}`));
+    .map((path) => new URL(path, `${baseUrl}/`).href);
 
   return Array.from(new Set(paths));
 };
