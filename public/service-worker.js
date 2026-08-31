@@ -64,6 +64,7 @@ self.addEventListener("install", (event) => {
         await cacheUrls(cache, shellUrls);
         await cacheUrls(cache, await getBuildAssetUrls());
       })
+      .then(() => self.skipWaiting())
   );
 });
 

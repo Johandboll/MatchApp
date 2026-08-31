@@ -2,6 +2,10 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.8": [
+    "**Reparerad iPhone-cache:** En gammal service worker tas bort så att hemskärmsappen behåller den senaste versionen offline.",
+    "**Lugnare uppdatering:** En ny worker tar över utan att automatiskt ladda om en pågående match."
+  ],
   "2.0.4.7": [
     "**Senaste versionen offline:** Safari kan inte längre fylla den nya offline-cachen med en äldre appversion.",
     "**Separata byggcacher:** Varje nytt bygge får en egen cache och tidigare byggcacher tas bort."

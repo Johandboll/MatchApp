@@ -11,4 +11,5 @@ test("offline cache is unique per build and bypasses Safari's stale HTTP cache",
   expect(workerSource).toContain('cache: "reload"');
   expect(workerSource).toContain('cache: "no-store"');
   expect(workerSource).toContain("key !== CACHE_NAME");
+  expect(workerSource).toContain("self.skipWaiting()");
 });

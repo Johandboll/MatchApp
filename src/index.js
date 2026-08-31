@@ -16,9 +16,28 @@ root.render(
 );
 
 if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-  window.addEventListener("load", () => {
+  window.addEventListener("load", async () => {
     const baseUrl = process.env.PUBLIC_URL || "";
-    let refreshing = false;
+    const cacheScope = /(^|\/)test$/i.test(baseUrl) ? "test" : "prod";
+    const repairMarker = `matchapp:${cacheScope}:worker-repair:${APP_VERSION}`;
+
+    // 2.0.4.8 repairs iOS installations that are still controlled by the
+    // original worker and therefore launch an old app shell offline.
+    if (APP_VERSION === "2.0.4.8" && !localStorage.getItem(repairMarker)) {
+      try {
+        const oldRegistration = await navigator.serviceWorker.getRegistration();
+        if (oldRegistration) await oldRegistration.unregister();
+        const cacheKeys = await caches.keys();
+        await Promise.all(
+          cacheKeys
+            .filter((key) => key.startsWith(`matchapp-${cacheScope}-shell-`))
+            .map((key) => caches.delete(key))
+        );
+        localStorage.setItem(repairMarker, "1");
+      } catch {
+        // Registration below still gets a chance to replace the old worker.
+      }
+    }
 
     const notifyUpdateAvailable = (registration) => {
       window.dispatchEvent(
@@ -27,12 +46,6 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
         })
       );
     };
-
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
 
     navigator.serviceWorker
       // A build-specific URL makes the browser install a fresh worker even
