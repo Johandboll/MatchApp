@@ -10,6 +10,8 @@ const user = { id: "user-1" };
 
 beforeEach(() => {
   supabase.rpc.mockReset();
+  localStorage.clear();
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
 });
 
 test.each(["pending", "approved", "blocked"])(
@@ -67,4 +69,31 @@ test("does not reload access when Supabase refreshes the same user session", asy
 
   expect(result.current.loading).toBe(false);
   expect(supabase.rpc).toHaveBeenCalledTimes(1);
+});
+
+test("uses previously approved access during an offline cold start without admin rights", async () => {
+  supabase.rpc.mockResolvedValueOnce({
+    data: [{
+      account_status: "approved",
+      team_create_limit: 10,
+      is_system_admin: true,
+      can_create_team: true
+    }],
+    error: null
+  });
+
+  const first = renderHook(() => useAccountAccess(user));
+  await waitFor(() => expect(first.result.current.loading).toBe(false));
+  first.unmount();
+
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  supabase.rpc.mockClear();
+  const offline = renderHook(() => useAccountAccess(user));
+
+  await waitFor(() => expect(offline.result.current.loading).toBe(false));
+  expect(offline.result.current.accountStatus).toBe("approved");
+  expect(offline.result.current.usingCache).toBe(true);
+  expect(offline.result.current.isSystemAdmin).toBe(false);
+  expect(offline.result.current.canCreateTeam).toBe(false);
+  expect(supabase.rpc).not.toHaveBeenCalled();
 });

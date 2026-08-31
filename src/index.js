@@ -51,7 +51,12 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
           });
         });
 
-        window.setInterval(() => registration.update(), 5 * 60 * 1000);
+        const updateRegistration = () => {
+          if (navigator.onLine === false) return;
+          registration.update().catch(() => {});
+        };
+        window.setInterval(updateRegistration, 5 * 60 * 1000);
+        window.addEventListener("online", updateRegistration);
       })
       .catch(() => {});
   });

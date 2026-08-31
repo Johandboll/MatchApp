@@ -18,9 +18,13 @@ export function useAppUpdate() {
   const [registration, setRegistration] = useState(null);
   const [remoteVersion, setRemoteVersion] = useState(null);
   const [reloading, setReloading] = useState(false);
+  const [online, setOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine !== false
+  );
 
   const checkVersion = useCallback(async () => {
     if (process.env.NODE_ENV !== "production") return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
 
     try {
       const response = await fetch(getVersionUrl(), {
@@ -59,7 +63,22 @@ export function useAppUpdate() {
     };
   }, [checkVersion]);
 
+  useEffect(() => {
+    const handleOnline = () => {
+      setOnline(true);
+      checkVersion();
+    };
+    const handleOffline = () => setOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [checkVersion]);
+
   const reloadToUpdate = useCallback(async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     setReloading(true);
 
     try {
@@ -84,7 +103,7 @@ export function useAppUpdate() {
   }, [registration]);
 
   return {
-    updateAvailable,
+    updateAvailable: updateAvailable && online,
     remoteVersion,
     reloading,
     reloadToUpdate

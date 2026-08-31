@@ -136,9 +136,11 @@ export function useSupabaseTeams(user) {
     };
 
     loadTeams();
+    window.addEventListener("online", loadTeams);
 
     return () => {
       active = false;
+      window.removeEventListener("online", loadTeams);
     };
   }, [userId]);
 

@@ -161,6 +161,20 @@ export default function App() {
   const saved = useMemo(() => loadSaved(), []);
   const whatsNew = useWhatsNew();
   const toastTimeoutRef = useRef(null);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine !== false
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const teamFileFromQuery = getTeamFileFromQuery();
   const [externalTeamData, setExternalTeamData] = useState(null);
@@ -1629,7 +1643,9 @@ export default function App() {
   const isHome = (matchInfo?.location || "") === "Hemma";
   const topbarLiveHome = isHome ? liveScore.our : liveScore.opp;
   const topbarLiveAway = isHome ? liveScore.opp : liveScore.our;
-  const onlineStatus = onlineMatches.online
+  const onlineStatus = !isOnline
+    ? "Offline – sparas på telefonen"
+    : onlineMatches.online
     ? pendingMatchesForSelectedTeam.length > 0
       ? `${pendingMatchesForSelectedTeam.length} match${pendingMatchesForSelectedTeam.length === 1 ? "" : "er"} väntar på synk`
       : onlineTeams.usingCache

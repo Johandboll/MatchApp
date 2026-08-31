@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { storageKey } from "../lib/storageKeys";
+
+const ACCESS_CACHE_KEY = storageKey("account-access-cache");
 
 const DEFAULT_ACCESS = {
   accountStatus: "pending",
@@ -19,8 +22,36 @@ const mapAccess = (data) => ({
   canCreateTeam: Boolean(data?.can_create_team)
 });
 
+const readAccessCache = (userId) => {
+  try {
+    const cache = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY)) || {};
+    return cache[userId]?.accountStatus === "approved" ? cache[userId] : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeAccessCache = (userId, access) => {
+  try {
+    const cache = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY)) || {};
+    cache[userId] = access;
+    localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify(cache));
+  } catch {}
+};
+
+const offlineAccess = (cached) => ({
+  ...cached,
+  // Privileged administration must always be revalidated online.
+  pendingAccountCount: 0,
+  isSystemAdmin: false,
+  canCreateTeam: false
+});
+
 const isFutureJwtError = (error) =>
   /jwt issued at future/i.test(error?.message || "");
+
+const isNetworkError = (error) =>
+  /failed to fetch|load failed|network error|network request failed/i.test(error?.message || "");
 
 const wait = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -30,12 +61,29 @@ export function useAccountAccess(user) {
   const [access, setAccess] = useState(DEFAULT_ACCESS);
   const [loading, setLoading] = useState(Boolean(supabase && user));
   const [error, setError] = useState("");
+  const [usingCache, setUsingCache] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!supabase || !userId) {
       setAccess(DEFAULT_ACCESS);
       setLoading(false);
       setError("");
+      setUsingCache(false);
+      return;
+    }
+
+    const cachedAccess = readAccessCache(userId);
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      if (cachedAccess) {
+        setAccess(offlineAccess(cachedAccess));
+        setError("");
+        setUsingCache(true);
+      } else {
+        setAccess(DEFAULT_ACCESS);
+        setError("Öppna MatchApp online en gång innan den kan startas offline.");
+        setUsingCache(false);
+      }
+      setLoading(false);
       return;
     }
 
@@ -54,20 +102,32 @@ export function useAccountAccess(user) {
     const { data, error: queryError } = result;
 
     if (queryError) {
-      setAccess(DEFAULT_ACCESS);
-      setError(queryError.message);
+      if (cachedAccess && isNetworkError(queryError)) {
+        setAccess(offlineAccess(cachedAccess));
+        setError("");
+        setUsingCache(true);
+      } else {
+        setAccess(DEFAULT_ACCESS);
+        setError(queryError.message);
+        setUsingCache(false);
+      }
       setLoading(false);
       return;
     }
 
     const row = Array.isArray(data) ? data[0] : data;
-    setAccess(mapAccess(row));
+    const nextAccess = mapAccess(row);
+    setAccess(nextAccess);
+    if (nextAccess.accountStatus === "approved") writeAccessCache(userId, nextAccess);
+    setUsingCache(false);
     setLoading(false);
   }, [userId]);
 
   useEffect(() => {
     refresh();
+    window.addEventListener("online", refresh);
+    return () => window.removeEventListener("online", refresh);
   }, [refresh]);
 
-  return { ...access, loading, error, refresh };
+  return { ...access, loading, error, usingCache, refresh };
 }

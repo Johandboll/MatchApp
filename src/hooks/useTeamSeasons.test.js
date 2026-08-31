@@ -15,6 +15,12 @@ const roster = [
   { id: "player-1", name: "Anna", shirt_number: 9, role: "field", active: true }
 ];
 
+beforeEach(() => {
+  supabase.rpc.mockReset();
+  localStorage.clear();
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+});
+
 test("keeps the last season roster when a refresh temporarily loses the network", async () => {
   supabase.rpc.mockImplementation((name) => {
     if (name === "list_team_seasons") return Promise.resolve({ data: [season], error: null });
@@ -45,5 +51,32 @@ test("keeps the last season roster when a refresh temporarily loses the network"
 
   expect(result.current.roster).toEqual(roster);
   expect(result.current.activeTeamSeason).toEqual(season);
-  expect(result.current.error).toBe("TypeError: Failed to fetch");
+  expect(result.current.error).toBe("");
+  expect(result.current.usingCache).toBe(true);
+});
+
+test("restores season and roster during an offline cold start", async () => {
+  supabase.rpc.mockImplementation((name) => {
+    if (name === "list_team_seasons") return Promise.resolve({ data: [season], error: null });
+    if (name === "list_team_season_roster") return Promise.resolve({ data: roster, error: null });
+    return Promise.resolve({ data: [], error: null });
+  });
+
+  const first = renderHook(() =>
+    useTeamSeasons({ id: "user-1" }, { onlineId: "team-1" }, "2026/2027")
+  );
+  await waitFor(() => expect(first.result.current.roster).toEqual(roster));
+  first.unmount();
+
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  supabase.rpc.mockClear();
+  const offline = renderHook(() =>
+    useTeamSeasons({ id: "user-1" }, { onlineId: "team-1" }, "2026/2027")
+  );
+
+  await waitFor(() => expect(offline.result.current.loading).toBe(false));
+  expect(offline.result.current.activeTeamSeason).toEqual(season);
+  expect(offline.result.current.roster).toEqual(roster);
+  expect(offline.result.current.usingCache).toBe(true);
+  expect(supabase.rpc).not.toHaveBeenCalled();
 });
