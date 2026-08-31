@@ -34,6 +34,19 @@ const playerShirtNumber = (player) => {
   return Number.isFinite(number) ? number : "";
 };
 
+export const normalizeTeamAdminPlayer = (player) => ({
+  ...player,
+  id: player?.id || player?.player_identity_id,
+  playerIdentityId: player?.playerIdentityId || player?.player_identity_id || null,
+  shirt_number: player?.shirt_number ?? player?.shirtNumber ?? player?.nr,
+  name: player?.name || player?.display_name || "",
+  role: player?.role || player?.player_role || "field",
+  active: player?.active !== false
+});
+
+const normalizeTeamAdminPlayers = (rows) =>
+  (Array.isArray(rows) ? rows : []).map(normalizeTeamAdminPlayer);
+
 export default function TeamAdminPanel({
   open,
   team,
@@ -73,6 +86,7 @@ export default function TeamAdminPanel({
   const [newTeamName, setNewTeamName] = useState("");
   const [playerForm, setPlayerForm] = useState({
     id: null,
+    playerIdentityId: null,
     shirtNumber: "",
     name: "",
     role: "field"
@@ -249,7 +263,7 @@ export default function TeamAdminPanel({
     if (!canLoad) return;
 
     if (activeTeamSeason?.team_season_id) {
-      setPlayers(seasonRoster || []);
+      setPlayers(normalizeTeamAdminPlayers(seasonRoster));
       setPlayersLoading(seasonLoading);
       setPlayerError(
         seasonError
@@ -278,7 +292,7 @@ export default function TeamAdminPanel({
       return;
     }
 
-    setPlayers(data || []);
+    setPlayers(normalizeTeamAdminPlayers(data));
     setPlayersLoading(false);
   }, [activeTeamSeason?.team_season_id, canLoad, seasonError, seasonLoading, seasonRoster, team]);
 
@@ -471,7 +485,7 @@ export default function TeamAdminPanel({
   };
 
   const resetPlayerForm = () => {
-    setPlayerForm({ id: null, shirtNumber: "", name: "", role: "field" });
+    setPlayerForm({ id: null, playerIdentityId: null, shirtNumber: "", name: "", role: "field" });
   };
 
   const playersFromMatches = useMemo(() => {
@@ -566,6 +580,7 @@ export default function TeamAdminPanel({
   const editPlayer = (player) => {
     setPlayerForm({
       id: player.id,
+      playerIdentityId: player.playerIdentityId || null,
       shirtNumber: String(player.shirt_number),
       name: player.name,
       role: player.role || "field"
@@ -578,16 +593,30 @@ export default function TeamAdminPanel({
     setPlayerError("");
 
     const seasonId = activeTeamSeason?.team_season_id;
+    const editingSeasonPlayer = Boolean(seasonId && playerForm.id);
     const { data, error: mutationError } = await supabase.rpc(
-      seasonId ? "upsert_team_season_player" : "upsert_team_player",
-      {
-      target_team_id: team.onlineId,
-      ...(seasonId ? { target_team_season_id: seasonId } : {}),
-      player_id: playerForm.id,
-      new_shirt_number: Number(playerForm.shirtNumber),
-      player_name: playerForm.name,
-      player_role: playerForm.role
-      }
+      editingSeasonPlayer
+        ? "update_team_season_roster_player"
+        : seasonId
+          ? "upsert_team_season_player"
+          : "upsert_team_player",
+      editingSeasonPlayer
+        ? {
+            target_team_id: team.onlineId,
+            target_team_season_id: seasonId,
+            target_player_identity_id: playerForm.playerIdentityId || playerForm.id,
+            new_display_name: playerForm.name,
+            new_shirt_number: Number(playerForm.shirtNumber),
+            new_player_role: playerForm.role
+          }
+        : {
+            target_team_id: team.onlineId,
+            ...(seasonId ? { target_team_season_id: seasonId } : {}),
+            player_id: playerForm.id,
+            new_shirt_number: Number(playerForm.shirtNumber),
+            player_name: playerForm.name,
+            player_role: playerForm.role
+          }
     );
 
     if (mutationError) {
@@ -596,8 +625,9 @@ export default function TeamAdminPanel({
       return;
     }
 
-    setPlayers(data || []);
-    onPlayersChanged?.(data || []);
+    const nextPlayers = normalizeTeamAdminPlayers(data);
+    setPlayers(nextPlayers);
+    onPlayersChanged?.(nextPlayers);
     if (seasonId) await onSeasonRefresh?.(selectedSeason);
     resetPlayerForm();
     setBusy(false);
@@ -610,13 +640,21 @@ export default function TeamAdminPanel({
 
     const seasonId = activeTeamSeason?.team_season_id;
     const { data, error: mutationError } = await supabase.rpc(
-      seasonId ? "set_team_season_player_active" : "set_team_player_active",
-      {
-      target_team_id: team.onlineId,
-      ...(seasonId ? { target_team_season_id: seasonId } : {}),
-      player_id: player.id,
-      is_active: active
-      }
+      seasonId ? "set_team_season_roster_player" : "set_team_player_active",
+      seasonId
+        ? {
+            target_team_id: team.onlineId,
+            target_team_season_id: seasonId,
+            target_player_identity_id: player.playerIdentityId || player.id,
+            new_shirt_number: Number(player.shirt_number),
+            new_player_role: player.role,
+            is_included: active
+          }
+        : {
+            target_team_id: team.onlineId,
+            player_id: player.id,
+            is_active: active
+          }
     );
 
     if (mutationError) {
@@ -625,8 +663,9 @@ export default function TeamAdminPanel({
       return;
     }
 
-    setPlayers(data || []);
-    onPlayersChanged?.(data || []);
+    const nextPlayers = normalizeTeamAdminPlayers(data);
+    setPlayers(nextPlayers);
+    onPlayersChanged?.(nextPlayers);
     if (seasonId) await onSeasonRefresh?.(selectedSeason);
     setBusy(false);
     onToast?.(active ? "Spelare aktiverad" : "Spelare inaktiverad");

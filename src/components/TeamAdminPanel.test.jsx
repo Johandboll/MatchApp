@@ -106,13 +106,13 @@ test("keeps player administration in sync with the active season", async () => {
   });
   fireEvent.click(within(annaRow).getByRole("button", { name: "Spara" }));
 
-  await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith("upsert_team_season_player", {
+  await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith("update_team_season_roster_player", {
     target_team_id: "team-1",
     target_team_season_id: "season-2",
-    player_id: "player-1",
+    target_player_identity_id: "player-1",
+    new_display_name: "Anna",
     new_shirt_number: 14,
-    player_name: "Anna",
-    player_role: "field"
+    new_player_role: "field"
   }));
   expect(onSeasonRefresh).toHaveBeenCalledWith("2026/2027");
 });
@@ -150,8 +150,8 @@ test("shows the active season roster instead of the legacy player list", async (
     teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027" }],
     activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027" },
     seasonRoster: [
-      { id: "season-player-1", shirt_number: 14, name: "Aktiv spelare", role: "field", active: true },
-      { id: "season-player-2", shirt_number: 33, name: "Frank", role: "field", active: false }
+      { player_identity_id: "season-player-1", shirt_number: 14, display_name: "Aktiv spelare", player_role: "field", active: true },
+      { player_identity_id: "season-player-2", shirt_number: 33, display_name: "Frank", player_role: "field", active: false }
     ]
   });
 
@@ -159,6 +159,29 @@ test("shows the active season roster instead of the legacy player list", async (
   expect(screen.getByText("Frank")).toBeVisible();
   expect(screen.getByText("1 aktiva")).toBeVisible();
   expect(supabase.rpc).not.toHaveBeenCalledWith("list_team_players", expect.anything());
+});
+
+test("activates a season player by permanent player identity", async () => {
+  renderPanel({
+    selectedSeason: "2026/2027",
+    teamSeasons: [{ team_season_id: "season-2", season_name: "2026/2027" }],
+    activeTeamSeason: { team_season_id: "season-2", season_name: "2026/2027" },
+    seasonRoster: [
+      { player_identity_id: "identity-frank", shirt_number: 33, display_name: "Frank", player_role: "field", active: false }
+    ],
+    onSeasonRefresh: jest.fn().mockResolvedValue()
+  });
+
+  fireEvent.click(await screen.findByRole("button", { name: "Aktivera" }));
+
+  await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith("set_team_season_roster_player", {
+    target_team_id: "team-1",
+    target_team_season_id: "season-2",
+    target_player_identity_id: "identity-frank",
+    new_shirt_number: 33,
+    new_player_role: "field",
+    is_included: true
+  }));
 });
 
 test("shows undo and deletion time for a scheduled team", async () => {
