@@ -10,6 +10,10 @@ const workerVersion = new URL(self.location.href).searchParams.get("v") || "lega
 const safeWorkerVersion = workerVersion.replace(/[^a-zA-Z0-9._-]+/g, "-");
 const CACHE_NAME = `${CACHE_PREFIX}${safeWorkerVersion}`;
 const baseUrl = `${self.location.origin}${basePath}`;
+const matchCurrentCache = async (request) => {
+  const cache = await caches.open(CACHE_NAME);
+  return cache.match(request);
+};
 
 const shellUrls = [
   `${baseUrl}/`,
@@ -75,7 +79,9 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+            .filter((key) => (
+              key.startsWith(CACHE_PREFIX) || /^matchapp-shell-v\d+$/i.test(key)
+            ) && key !== CACHE_NAME)
             .map((key) => caches.delete(key))
         )
       )
@@ -100,7 +106,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(new Request(request.url, { cache: "no-store", credentials: "same-origin" }))
         .then((response) => response)
-        .catch(() => caches.match(`${baseUrl}/version.json`))
+        .catch(() => matchCurrentCache(`${baseUrl}/version.json`))
     );
     return;
   }
@@ -113,13 +119,13 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(`${baseUrl}/index.html`, copy));
           return response;
         })
-        .catch(() => caches.match(`${baseUrl}/index.html`))
+        .catch(() => matchCurrentCache(`${baseUrl}/index.html`))
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    matchCurrentCache(request).then((cached) => {
       if (cached) return cached;
 
       return fetch(request)
@@ -130,7 +136,7 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(`${baseUrl}/index.html`));
+        .catch(() => matchCurrentCache(request).then((fallback) => fallback || Response.error()));
     })
   );
 });

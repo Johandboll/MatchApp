@@ -21,16 +21,18 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
     const cacheScope = /(^|\/)test$/i.test(baseUrl) ? "test" : "prod";
     const repairMarker = `matchapp:${cacheScope}:worker-repair:${APP_VERSION}`;
 
-    // 2.0.4.8 repairs iOS installations that are still controlled by the
+    // 2.0.4.9 repairs iOS installations that are still controlled by the
     // original worker and therefore launch an old app shell offline.
-    if (APP_VERSION === "2.0.4.8" && !localStorage.getItem(repairMarker)) {
+    if (APP_VERSION === "2.0.4.9" && !localStorage.getItem(repairMarker)) {
       try {
         const oldRegistration = await navigator.serviceWorker.getRegistration();
         if (oldRegistration) await oldRegistration.unregister();
         const cacheKeys = await caches.keys();
         await Promise.all(
           cacheKeys
-            .filter((key) => key.startsWith(`matchapp-${cacheScope}-shell-`))
+            .filter((key) => (
+              key.startsWith(`matchapp-${cacheScope}-shell-`) || /^matchapp-shell-v\d+$/i.test(key)
+            ))
             .map((key) => caches.delete(key))
         );
         localStorage.setItem(repairMarker, "1");
