@@ -1,0 +1,14 @@
+import fs from "fs";
+import path from "path";
+
+const workerSource = fs.readFileSync(
+  path.join(process.cwd(), "public", "service-worker.js"),
+  "utf8"
+);
+
+test("offline cache is unique per build and bypasses Safari's stale HTTP cache", () => {
+  expect(workerSource).toContain('searchParams.get("v")');
+  expect(workerSource).toContain('cache: "reload"');
+  expect(workerSource).toContain('cache: "no-store"');
+  expect(workerSource).toContain("key !== CACHE_NAME");
+});

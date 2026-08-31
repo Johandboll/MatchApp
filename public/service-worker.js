@@ -6,7 +6,9 @@ const getBasePath = () => {
 const basePath = getBasePath();
 const cacheScope = basePath === "/test" ? "test" : basePath === "/matchapp" ? "prod" : "dev";
 const CACHE_PREFIX = `matchapp-${cacheScope}-shell-`;
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+const workerVersion = new URL(self.location.href).searchParams.get("v") || "legacy-v6";
+const safeWorkerVersion = workerVersion.replace(/[^a-zA-Z0-9._-]+/g, "-");
+const CACHE_NAME = `${CACHE_PREFIX}${safeWorkerVersion}`;
 const baseUrl = `${self.location.origin}${basePath}`;
 
 const shellUrls = [
@@ -21,11 +23,18 @@ const shellUrls = [
 
 const cacheUrls = async (cache, urls) => {
   await Promise.all(
-    urls.map((url) =>
-      cache.add(url).catch(() => {
+    urls.map(async (url) => {
+      try {
+        // Never seed a new offline cache from Safari's stale HTTP cache.
+        const response = await fetch(new Request(url, {
+          cache: "reload",
+          credentials: "same-origin"
+        }));
+        if (response.ok) await cache.put(url, response);
+      } catch {
         // A single missing optional asset must not abort offline support.
-      })
-    )
+      }
+    })
   );
 };
 
@@ -97,7 +106,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(new Request(request, { cache: "no-store" }))
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(`${baseUrl}/index.html`, copy));
