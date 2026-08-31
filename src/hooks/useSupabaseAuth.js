@@ -12,6 +12,17 @@ export function useSupabaseAuth() {
     }
 
     let active = true;
+    const updateAutoRefresh = () => {
+      if (navigator.onLine === false) {
+        supabase.auth.stopAutoRefresh();
+      } else {
+        supabase.auth.startAutoRefresh();
+      }
+    };
+
+    updateAutoRefresh();
+    window.addEventListener("online", updateAutoRefresh);
+    window.addEventListener("offline", updateAutoRefresh);
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
@@ -28,6 +39,8 @@ export function useSupabaseAuth() {
 
     return () => {
       active = false;
+      window.removeEventListener("online", updateAutoRefresh);
+      window.removeEventListener("offline", updateAutoRefresh);
       subscription.unsubscribe();
     };
   }, []);

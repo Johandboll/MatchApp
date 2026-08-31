@@ -2009,6 +2009,7 @@ export default function App() {
           stats={stats}
           increment={increment}
           playersForUI={playersForUI}
+          isOnline={isOnline}
           onToggleMatchPlayer={toggleMatchPlayer}
           onConfirm={requestConfirm}
         />

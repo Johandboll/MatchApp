@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { storageKey } from "../lib/storageKeys";
 
 const ACCESS_CACHE_KEY = storageKey("account-access-cache");
+const TEAMS_CACHE_KEY = storageKey("supabase-teams-cache");
 
 const DEFAULT_ACCESS = {
   accountStatus: "pending",
@@ -39,6 +40,20 @@ const writeAccessCache = (userId, access) => {
   } catch {}
 };
 
+const hasCachedTeams = (userId) => {
+  try {
+    const cache = JSON.parse(localStorage.getItem(TEAMS_CACHE_KEY)) || {};
+    return Array.isArray(cache[userId]) && cache[userId].length > 0;
+  } catch {
+    return false;
+  }
+};
+
+const readOfflineAccess = (userId) =>
+  readAccessCache(userId) || (hasCachedTeams(userId)
+    ? { ...DEFAULT_ACCESS, accountStatus: "approved" }
+    : null);
+
 const offlineAccess = (cached) => ({
   ...cached,
   // Privileged administration must always be revalidated online.
@@ -72,7 +87,7 @@ export function useAccountAccess(user) {
       return;
     }
 
-    const cachedAccess = readAccessCache(userId);
+    const cachedAccess = readOfflineAccess(userId);
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       if (cachedAccess) {
         setAccess(offlineAccess(cachedAccess));

@@ -2,6 +2,11 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.5": [
+    "**Offline-kallstart:** Matchläget kan öppnas från ett tidigare sparat lag även om nätet saknas.",
+    "**Status i matchen:** En röd offlineindikering visas nu även medan matchen pågår.",
+    "**Färre nätvarningar:** Automatisk sessionsförnyelse pausas när telefonen är offline."
+  ],
   "2.0.4.4": [
     "**Stabilare offline:** En tidigare verifierad användare kan öppna matchläget igen även när täckningen saknas.",
     "**Tydligare nätstatus:** MatchApp visar när matchen sparas på telefonen och väntar med uppdateringar tills nätet är tillbaka."

@@ -23,6 +23,7 @@ export default function MatchSession({
   stats,
   increment,
   playersForUI,
+  isOnline,
   onToggleMatchPlayer,
   onConfirm
 }) {
@@ -78,6 +79,13 @@ export default function MatchSession({
 
   return (
     <div className="-mx-4 min-h-screen bg-gradient-to-b from-sky-100/70 via-slate-50/40 to-transparent px-4 pb-6">
+      {!isOnline && (
+        <div className="flex justify-center pt-2">
+          <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-extrabold text-red-800">
+            Offline – sparas på telefonen
+          </span>
+        </div>
+      )}
       <TopBar
         currentHalf={currentHalf}
         setCurrentHalf={setCurrentHalf}

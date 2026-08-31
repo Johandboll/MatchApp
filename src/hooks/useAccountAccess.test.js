@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { supabase } from "../lib/supabaseClient";
+import { storageKey } from "../lib/storageKeys";
 import { useAccountAccess } from "./useAccountAccess";
 
 jest.mock("../lib/supabaseClient", () => ({
@@ -95,5 +96,21 @@ test("uses previously approved access during an offline cold start without admin
   expect(offline.result.current.usingCache).toBe(true);
   expect(offline.result.current.isSystemAdmin).toBe(false);
   expect(offline.result.current.canCreateTeam).toBe(false);
+  expect(supabase.rpc).not.toHaveBeenCalled();
+});
+
+test("allows limited offline match access when the team cache predates the access cache", async () => {
+  localStorage.setItem(storageKey("supabase-teams-cache"), JSON.stringify({
+    "user-1": [{ id: "p14", onlineId: "team-1", name: "P14" }]
+  }));
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+
+  const { result } = renderHook(() => useAccountAccess(user));
+
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.accountStatus).toBe("approved");
+  expect(result.current.usingCache).toBe(true);
+  expect(result.current.isSystemAdmin).toBe(false);
+  expect(result.current.canCreateTeam).toBe(false);
   expect(supabase.rpc).not.toHaveBeenCalled();
 });
