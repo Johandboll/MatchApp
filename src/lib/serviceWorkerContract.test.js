@@ -15,4 +15,6 @@ test("offline cache is unique per build and bypasses Safari's stale HTTP cache",
   expect(workerSource).toContain("matchCurrentCache");
   expect(workerSource).not.toContain("caches.match(");
   expect(workerSource).toContain("matchapp-shell-v");
+  expect(workerSource).toContain("MATCHAPP_OFFLINE_READY");
+  expect(workerSource).toContain("requiredShellUrls, true");
 });

@@ -52,6 +52,7 @@ const CHANGELOG_TOOLTIP = getChangelogTooltip(APP_VERSION);
 const EXTERNAL_TEAM_ID = "__external_team_file__";
 const PENDING_ONLINE_MATCHES_KEY = storageKey("pending-online-matches");
 const PRIVACY_NOTICE_KEY = storageKey("privacy-notice");
+const OFFLINE_READY_KEY = storageKey("offline-ready-version");
 const PRIVACY_NOTICE_COLUMNS_MISSING = "42703";
 const slugifyPlayerPart = (value) =>
   String(value || "")
@@ -164,6 +165,13 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine !== false
   );
+  const [offlineReady, setOfflineReady] = useState(() => {
+    try {
+      return localStorage.getItem(OFFLINE_READY_KEY) === APP_VERSION;
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -174,6 +182,12 @@ export default function App() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleOfflineReady = () => setOfflineReady(true);
+    window.addEventListener("matchapp:offline-ready", handleOfflineReady);
+    return () => window.removeEventListener("matchapp:offline-ready", handleOfflineReady);
   }, []);
 
   const teamFileFromQuery = getTeamFileFromQuery();
@@ -1652,7 +1666,9 @@ export default function App() {
         ? "Offline: cachelagrat lag"
         : onlineMatches.loading
         ? "Synkar..."
-        : "Synkad online"
+        : offlineReady
+          ? "Synkad online · Offline redo"
+          : "Synkad online · Förbereder offline"
     : "Lokal lagring";
   const pendingAccountCount = Number(accountAccess.pendingAccountCount || 0);
   const renderSystemAdminLabel = () => (

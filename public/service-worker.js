@@ -15,17 +15,19 @@ const matchCurrentCache = async (request) => {
   return cache.match(request);
 };
 
-const shellUrls = [
+const requiredShellUrls = [
   `${baseUrl}/`,
   `${baseUrl}/index.html`,
   `${baseUrl}/asset-manifest.json`,
   `${baseUrl}/version.json`,
-  `${baseUrl}/manifest.json`,
+  `${baseUrl}/manifest.json`
+];
+const optionalShellUrls = [
   `${baseUrl}/icons/icon-192.png`,
   `${baseUrl}/icons/icon-512.png`
 ];
 
-const cacheUrls = async (cache, urls) => {
+const cacheUrls = async (cache, urls, required = false) => {
   await Promise.all(
     urls.map(async (url) => {
       try {
@@ -34,8 +36,10 @@ const cacheUrls = async (cache, urls) => {
           cache: "reload",
           credentials: "same-origin"
         }));
-        if (response.ok) await cache.put(url, response);
-      } catch {
+        if (!response.ok) throw new Error(`Could not cache ${url}`);
+        await cache.put(url, response);
+      } catch (error) {
+        if (required) throw error;
         // A single missing optional asset must not abort offline support.
       }
     })
@@ -43,21 +47,24 @@ const cacheUrls = async (cache, urls) => {
 };
 
 const getBuildAssetUrls = async () => {
-  try {
-    const response = await fetch(`${baseUrl}/asset-manifest.json`, { cache: "no-store" });
-    if (!response.ok) return [];
+  const response = await fetch(`${baseUrl}/asset-manifest.json`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load asset manifest");
 
-    const manifest = await response.json();
-    const files = Object.values(manifest.files || {});
-    const entrypoints = manifest.entrypoints || [];
-    const paths = [...files, ...entrypoints]
-      .filter(Boolean)
-      .map((path) => (path.startsWith("http") ? path : `${self.location.origin}${path}`));
+  const manifest = await response.json();
+  const entrypoints = manifest.entrypoints || [];
+  const paths = entrypoints
+    .filter(Boolean)
+    .map((path) => (path.startsWith("http") ? path : `${self.location.origin}${path}`));
 
-    return Array.from(new Set(paths));
-  } catch {
-    return [];
-  }
+  return Array.from(new Set(paths));
+};
+
+const notifyOfflineReady = async () => {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  clients.forEach((client) => client.postMessage({
+    type: "MATCHAPP_OFFLINE_READY",
+    version: workerVersion
+  }));
 };
 
 self.addEventListener("install", (event) => {
@@ -65,8 +72,9 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then(async (cache) => {
-        await cacheUrls(cache, shellUrls);
-        await cacheUrls(cache, await getBuildAssetUrls());
+        await cacheUrls(cache, requiredShellUrls, true);
+        await cacheUrls(cache, await getBuildAssetUrls(), true);
+        await cacheUrls(cache, optionalShellUrls);
       })
       .then(() => self.skipWaiting())
   );
@@ -86,12 +94,24 @@ self.addEventListener("activate", (event) => {
         )
       )
       .then(() => self.clients.claim())
+      .then(() => notifyOfflineReady())
   );
 });
 
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data && event.data.type === "MATCHAPP_CHECK_OFFLINE_READY") {
+    event.waitUntil(
+      Promise.all([
+        matchCurrentCache(`${baseUrl}/index.html`),
+        matchCurrentCache(`${baseUrl}/asset-manifest.json`)
+      ]).then(([indexResponse, manifestResponse]) => {
+        if (indexResponse && manifestResponse) return notifyOfflineReady();
+        return undefined;
+      })
+    );
   }
 });
 

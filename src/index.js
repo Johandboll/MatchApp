@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import { APP_VERSION, BUILD_TIME } from "./config/appVersion";
-import { migrateLegacyStorage } from "./lib/storageKeys";
+import { migrateLegacyStorage, storageKey } from "./lib/storageKeys";
 
 migrateLegacyStorage();
 
@@ -20,6 +20,17 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
     const baseUrl = process.env.PUBLIC_URL || "";
     const cacheScope = /(^|\/)test$/i.test(baseUrl) ? "test" : "prod";
     const repairMarker = `matchapp:${cacheScope}:worker-repair:${APP_VERSION}`;
+    const workerToken = `${APP_VERSION}-${BUILD_TIME}`;
+    const offlineReadyKey = storageKey("offline-ready-version");
+
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type !== "MATCHAPP_OFFLINE_READY") return;
+      if (event.data.version !== workerToken) return;
+      try {
+        localStorage.setItem(offlineReadyKey, APP_VERSION);
+      } catch {}
+      window.dispatchEvent(new CustomEvent("matchapp:offline-ready"));
+    });
 
     // 2.0.4.9 repairs iOS installations that are still controlled by the
     // original worker and therefore launch an old app shell offline.
@@ -52,7 +63,7 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
     navigator.serviceWorker
       // A build-specific URL makes the browser install a fresh worker even
       // when the service-worker source itself has not changed.
-      .register(`${baseUrl}/service-worker.js?v=${encodeURIComponent(`${APP_VERSION}-${BUILD_TIME}`)}`)
+      .register(`${baseUrl}/service-worker.js?v=${encodeURIComponent(workerToken)}`)
       .then((registration) => {
         if (registration.waiting && navigator.serviceWorker.controller) {
           notifyUpdateAvailable(registration);
@@ -75,6 +86,7 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
         };
         window.setInterval(updateRegistration, 5 * 60 * 1000);
         window.addEventListener("online", updateRegistration);
+        registration.active?.postMessage({ type: "MATCHAPP_CHECK_OFFLINE_READY" });
       })
       .catch(() => {});
   });

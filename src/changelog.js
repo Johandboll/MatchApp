@@ -2,6 +2,10 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.10": [
+    "**Bekräftad offlineinstallation:** Appen visar Offline redo först när alla nödvändiga filer verkligen finns på telefonen.",
+    "**Ingen tom offline-start:** En ofullständig cache får inte längre aktiveras."
+  ],
   "2.0.4.9": [
     "**Rätt cache vid offline-start:** Appen läser nu endast från den installerade versionens cache.",
     "**Gamla cacher tas bort:** Äldre cacheformat från 2.0.4 rensas automatiskt."
