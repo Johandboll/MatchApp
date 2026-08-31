@@ -6,7 +6,7 @@ const getBasePath = () => {
 const basePath = getBasePath();
 const cacheScope = basePath === "/test" ? "test" : basePath === "/matchapp" ? "prod" : "dev";
 const CACHE_PREFIX = `matchapp-${cacheScope}-shell-`;
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const baseUrl = `${self.location.origin}${basePath}`;
 
 const shellUrls = [

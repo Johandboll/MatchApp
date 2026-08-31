@@ -2,6 +2,10 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.6": [
+    "**Rätt version offline:** Appen behåller nu det senaste installerade bygget när den startas utan nät.",
+    "**Säkrare uppdateringar:** Gamla offlinefiler rensas när en ny version har installerats."
+  ],
   "2.0.4.5": [
     "**Offline-kallstart:** Matchläget kan öppnas från ett tidigare sparat lag även om nätet saknas.",
     "**Status i matchen:** En röd offlineindikering visas nu även medan matchen pågår.",

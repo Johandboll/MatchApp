@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { APP_VERSION, BUILD_TIME } from "./config/appVersion";
 import { migrateLegacyStorage } from "./lib/storageKeys";
 
 migrateLegacyStorage();
@@ -34,7 +35,9 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
     });
 
     navigator.serviceWorker
-      .register(`${baseUrl}/service-worker.js`)
+      // A build-specific URL makes the browser install a fresh worker even
+      // when the service-worker source itself has not changed.
+      .register(`${baseUrl}/service-worker.js?v=${encodeURIComponent(`${APP_VERSION}-${BUILD_TIME}`)}`)
       .then((registration) => {
         if (registration.waiting && navigator.serviceWorker.controller) {
           notifyUpdateAvailable(registration);
