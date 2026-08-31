@@ -1901,7 +1901,9 @@ export default function App() {
               <span className="min-w-0 truncate">{auth.user.email}</span>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                  pendingMatchesForSelectedTeam.length > 0
+                  !isOnline
+                    ? "bg-red-100 text-red-800"
+                    : pendingMatchesForSelectedTeam.length > 0
                     ? "bg-amber-100 text-amber-800"
                     : onlineTeams.usingCache
                       ? "bg-amber-100 text-amber-800"

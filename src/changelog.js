@@ -2,6 +2,10 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.4": [
+    "**Stabilare offline:** En tidigare verifierad användare kan öppna matchläget igen även när täckningen saknas.",
+    "**Tydligare nätstatus:** MatchApp visar när matchen sparas på telefonen och väntar med uppdateringar tills nätet är tillbaka."
+  ],
   "2.0.4": [
     "**Skapa lag:** Skapa ditt eget lag och lägg enkelt till spelare och målvakter.",
     "**Hantera laget:** Lagägaren kan lägga till medlemmar och utse lagadministratörer.",
