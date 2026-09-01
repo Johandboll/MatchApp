@@ -2,6 +2,9 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.13": [
+    "**Jämnare startintro:** Laddningslinjen rör sig nu mjukt i en sammanhängande rörelse under en sekund."
+  ],
   "2.0.4.12": [
     "**Mjukare start:** MatchApp visar nu ett kort startintro medan session och lokala uppgifter läses in."
   ],

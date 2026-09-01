@@ -73,13 +73,12 @@ button.pop {
 }
 
 @keyframes matchapp-start-slide {
-  0% { transform: translateX(-115%); }
-  55% { transform: translateX(45%); }
-  100% { transform: translateX(215%); }
+  0% { transform: translateX(-125%); }
+  100% { transform: translateX(225%); }
 }
 
 .matchapp-start-progress {
-  animation: matchapp-start-slide 850ms ease-in-out infinite;
+  animation: matchapp-start-slide 1000ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
