@@ -72,13 +72,13 @@ button.pop {
   /* bibehåll border-radius/box-shadow från Tailwind-klasser */
 }
 
-@keyframes matchapp-start-slide {
-  0% { transform: translateX(-125%); }
-  100% { transform: translateX(225%); }
+@keyframes matchapp-start-fill {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
 }
 
 .matchapp-start-progress {
-  animation: matchapp-start-slide 1000ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: matchapp-start-fill 1200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

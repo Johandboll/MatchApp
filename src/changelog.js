@@ -2,6 +2,9 @@
 
 // ✅ Enkla "Vad är nytt?"-punkter per version (för modalen)
 const WHATS_NEW_BY_VERSION = {
+  "2.0.4.14": [
+    "**Lugnare startintro:** Progresslinjen fylls mjukt under 1,2 sekunder och ligger kvar fylld när appen öppnas."
+  ],
   "2.0.4.13": [
     "**Jämnare startintro:** Laddningslinjen rör sig nu mjukt i en sammanhängande rörelse under en sekund."
   ],

@@ -17,7 +17,7 @@ export default function StartupSplash() {
           MatchApp
         </p>
         <div className="mt-5 h-1 w-36 overflow-hidden rounded-full bg-slate-200">
-          <span className="matchapp-start-progress block h-full w-1/2 rounded-full bg-sky-600" />
+          <span className="matchapp-start-progress block h-full w-full origin-left rounded-full bg-sky-600" />
         </div>
       </div>
     </div>

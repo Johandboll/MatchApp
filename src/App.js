@@ -54,7 +54,7 @@ const EXTERNAL_TEAM_ID = "__external_team_file__";
 const PENDING_ONLINE_MATCHES_KEY = storageKey("pending-online-matches");
 const PRIVACY_NOTICE_KEY = storageKey("privacy-notice");
 const OFFLINE_READY_KEY = storageKey("offline-ready-version");
-const STARTUP_INTRO_MS = 1000;
+const STARTUP_INTRO_MS = 1200;
 const PRIVACY_NOTICE_COLUMNS_MISSING = "42703";
 const slugifyPlayerPart = (value) =>
   String(value || "")
