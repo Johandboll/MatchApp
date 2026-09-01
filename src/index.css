@@ -71,3 +71,20 @@ button.pop {
   animation: btn-pop 160ms ease-out;
   /* bibehåll border-radius/box-shadow från Tailwind-klasser */
 }
+
+@keyframes matchapp-start-slide {
+  0% { transform: translateX(-115%); }
+  55% { transform: translateX(45%); }
+  100% { transform: translateX(215%); }
+}
+
+.matchapp-start-progress {
+  animation: matchapp-start-slide 850ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matchapp-start-progress {
+    width: 100%;
+    animation: none;
+  }
+}

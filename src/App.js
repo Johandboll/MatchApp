@@ -12,6 +12,7 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import AppUpdatePrompt from "./components/AppUpdatePrompt";
 import PrivacyNoticeModal, { PRIVACY_NOTICE_VERSION } from "./components/PrivacyNoticeModal";
 import HelpModal from "./components/HelpModal";
+import StartupSplash from "./components/StartupSplash";
 import { getChangelogTooltip } from "./changelog";
 import { APP_VERSION } from "./config/appVersion";
 import { useAppUpdate } from "./hooks/useAppUpdate";
@@ -53,6 +54,7 @@ const EXTERNAL_TEAM_ID = "__external_team_file__";
 const PENDING_ONLINE_MATCHES_KEY = storageKey("pending-online-matches");
 const PRIVACY_NOTICE_KEY = storageKey("privacy-notice");
 const OFFLINE_READY_KEY = storageKey("offline-ready-version");
+const STARTUP_INTRO_MS = 950;
 const PRIVACY_NOTICE_COLUMNS_MISSING = "42703";
 const slugifyPlayerPart = (value) =>
   String(value || "")
@@ -162,6 +164,7 @@ export default function App() {
   const saved = useMemo(() => loadSaved(), []);
   const whatsNew = useWhatsNew();
   const toastTimeoutRef = useRef(null);
+  const [startupIntroVisible, setStartupIntroVisible] = useState(true);
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine !== false
   );
@@ -172,6 +175,11 @@ export default function App() {
       return false;
     }
   });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStartupIntroVisible(false), STARTUP_INTRO_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -1688,6 +1696,10 @@ export default function App() {
       reloading={appUpdate.reloading}
     />
   );
+
+  if (startupIntroVisible) {
+    return <StartupSplash />;
+  }
 
   if (externalTeamLoading) {
     return (
